@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#1A1410"/>
+<title>LekkeBru</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#F7F4EF;--card:#fff;--text:#1A1410;--muted:#7A6F65;--border:#E8E0D5;--green:#1D6B4B;--green-l:#EAF3DE;--green-d:#27500A;--amber:#BA7517;--amber-l:#FAEEDA;--sea:#DCEBF7;--sand:#F1E3C6}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);max-width:440px;margin:0 auto;min-height:100vh}
+button{font-family:inherit}
+.syne{font-family:'Syne',sans-serif}
+.top{background:var(--card);border-bottom:0.5px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.wm{font-family:'Syne',sans-serif;font-size:21px;font-weight:800;letter-spacing:-0.5px}
+.wm em{color:var(--green);font-style:normal}
+.back{background:none;border:none;font-size:14px;color:var(--muted);cursor:pointer}
+.hero{padding:20px 20px 6px}
+.hero h1{font-family:'Syne',sans-serif;font-size:25px;font-weight:800;line-height:1.15;letter-spacing:-0.5px}
+.hero h1 em{color:var(--green);font-style:normal}
+.hero p{font-size:13px;color:var(--muted);margin-top:6px}
+.tabs{display:flex;gap:8px;padding:12px 20px 4px}
+.tab{border:0.5px solid var(--border);background:var(--card);color:var(--muted);border-radius:20px;padding:7px 14px;font-size:13px;cursor:pointer}
+.tab.on{background:var(--text);color:#fff;border-color:var(--text)}
+.mapwrap{margin:10px 20px 0;background:var(--card);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.mapwrap svg{display:block;width:100%;height:auto}
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:10px 20px 0;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.prev{margin:12px 20px 0;background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:12px;display:flex;gap:12px;align-items:center}
+.prev.empty{color:var(--muted);font-size:13px;justify-content:center;padding:16px}
+.thumb{width:84px;height:84px;border-radius:10px;object-fit:cover;background:#D4E8DC;flex-shrink:0}
+.pv-name{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;letter-spacing:-0.2px;line-height:1.2}
+.pv-sub{font-size:12px;color:var(--muted);margin-top:3px}
+.btn{background:var(--text);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:500;cursor:pointer;margin-top:8px}
+.btn.alt{background:var(--card);color:var(--text);border:0.5px solid var(--border)}
+.chip{display:inline-block;font-size:11px;font-weight:500;border-radius:6px;padding:3px 8px;margin-right:6px}
+.c-fixed{background:var(--green-l);color:var(--green-d)}
+.c-mobile{background:var(--amber-l);color:#633806}
+.score{font-family:'Syne',sans-serif;font-weight:800;color:var(--green)}
+.list{padding:14px 20px 0}
+.list h2{font-family:'Syne',sans-serif;font-size:16px;margin-bottom:8px}
+.item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer;color:var(--text)}
+.item.sel{border:1.5px solid var(--text)}
+.num{flex:0 0 24px;height:24px;border-radius:50%;color:#fff;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center}
+.foot{padding:16px 20px 40px;font-size:12px;color:var(--muted)}
+.photo{width:100%;height:240px;object-fit:cover;background:#D4E8DC;display:block}
+.ident{background:var(--card);padding:16px 20px;border-bottom:0.5px solid var(--border)}
+.ident h1{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.5px;line-height:1.15}
+.big{font-family:'Syne',sans-serif;font-size:34px;font-weight:800;color:var(--green);line-height:1;text-align:right}
+.sec{background:var(--card);border:0.5px solid var(--border);border-radius:14px;margin:12px 20px 0;padding:14px 16px}
+.sec h3{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px}
+.rate{padding:8px 0;border-bottom:0.5px solid var(--border)}
+.rate:last-child{border-bottom:none}
+.rate-top{display:flex;justify-content:space-between;align-items:baseline;font-size:14px}
+.rate-val{font-family:'Syne',sans-serif;font-weight:800;font-size:17px}
+.rate-val.none{color:var(--muted);font-weight:400;font-size:13px;font-family:'DM Sans',sans-serif}
+input[type=range]{width:100%;accent-color:var(--green);margin-top:4px}
+.clr{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 0}
+.roasts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.rb{border:0.5px solid var(--border);background:var(--card);border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer;color:var(--text)}
+.rb.on{background:var(--text);color:#fff;border-color:var(--text)}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+.in{width:100%;border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;background:var(--bg);color:var(--text)}
+textarea.in{resize:vertical;min-height:64px}
+.dir{display:block;text-align:center;text-decoration:none;background:var(--text);color:#fff;border-radius:12px;padding:14px;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin:12px 20px 0}
+.note{font-size:12px;color:var(--muted);margin:10px 20px 0}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SPOTS=[
+{id:'on-the-go',name:'On the Go (name to confirm)',type:'fixed',area:"Gordon's Bay",lat:-34.157703,lng:18.868187},
+{id:'bootlegger',name:'Bootlegger',type:'fixed',area:"Gordon's Bay",lat:-34.156887,lng:18.867874},
+{id:'unnamed-cafe-parking',name:'Unnamed cafe (name needed)',type:'fixed',area:'Strand',lat:-34.119392,lng:18.829510},
+{id:'merkava-coffee',name:'Merkava Coffee',type:'fixed',area:'Strand',lat:-34.117317,lng:18.827194},
+{id:'plato-coffee',name:'Plato Coffee',type:'fixed',area:'Strand',lat:-34.117477,lng:18.827805},
+{id:'seattle-coffee-co',name:'Seattle Coffee Co',type:'fixed',area:'Strand',lat:-34.117237,lng:18.825878},
+{id:'belgian-waffle-house',name:'The Belgian Waffle House',type:'fixed',area:'Strand',lat:-34.117134,lng:18.825699},
+{id:'vida-e-caffe',name:'Vida e Caffe',type:'fixed',area:'Strand',lat:-34.117134,lng:18.825699},
+{id:'coffee-shop-106-grasse',name:'Coffee shop at 106 Grasse',type:'fixed',area:'Strand',lat:-34.115990,lng:18.823994},
+{id:'chilli-bean-co',name:'Chilli Bean Co',type:'fixed',area:'Strand',lat:-34.106163,lng:18.818331},
+{id:'colourful-trailer',name:'Colourful coffee trailer (name needed)',type:'mobile',area:'Strand',lat:-34.105183,lng:18.817688},
+{id:'glass-building-cafe',name:'Cafe in glass building (name needed)',type:'fixed',area:'Strand',lat:-34.104649,lng:18.817331},
+{id:'black-trailer',name:'Black coffee trailer (name needed)',type:'mobile',area:'Strand',lat:-34.104912,lng:18.817329},
+{id:'blue-kiosk',name:'Blue beach kiosk (name needed)',type:'mobile',area:'Strand',lat:-34.104176,lng:18.816929},
+{id:'boutique-roastery',name:'The Boutique Roastery',type:'fixed',area:'Strand',lat:-34.095676,lng:18.812742}
+];
+const CATS=[['coffee','Coffee taste'],['view','View'],['social','Social and atmosphere'],['value','Value for money'],['service','Service and friendliness'],['food','Food and treats'],['comfort','Seating and comfort'],['reliability','Reliability (will they be there?)']];
+const ROASTS=['Light','Medium','Medium-dark','Dark','Not sure'];
+const AREAS=['Strand',"Gordon's Bay"];
+const KEY='lekkebru:v1';
+let db={};
+try{db=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){db={}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
+function rec(id){if(!db[id])db[id]={scores:{},roast:'',roaster:'',price:'',notes:''};return db[id]}
+function overall(id){const v=Object.values(rec(id).scores).filter(x=>typeof x==='number');return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):null}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function spot(id){return SPOTS.find(s=>s.id===id)}
+function colour(t){return t==='fixed'?'#1D6B4B':'#BA7517'}
+function typeLabel(t){return t==='fixed'?'Fixed shop':'Mobile trailer or kiosk'}
+let state={area:'Strand',sel:null,detail:null};
+
+function layout(area){
+  const list=SPOTS.filter(s=>s.area===area).sort((a,b)=>b.lat-a.lat);
+  list.forEach((s,i)=>s.n=i+1);
+  const W=380,H=500,pad=48,R=92140,RL=111320;
+  const lat0=list.reduce((a,s)=>a+s.lat,0)/list.length,lng0=list.reduce((a,s)=>a+s.lng,0)/list.length;
+  list.forEach(s=>{s.mx=(s.lng-lng0)*R;s.my=-(s.lat-lat0)*RL});
+  const xs=list.map(s=>s.mx),ys=list.map(s=>s.my);
+  const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  const sc=Math.min((W-2*pad)/Math.max(maxx-minx,1),(H-2*pad)/Math.max(maxy-miny,1),0.8);
+  list.forEach(s=>{s.x=W/2+(s.mx-(minx+maxx)/2)*sc;s.y=H/2+(s.my-(miny+maxy)/2)*sc;s.dx=s.x;s.dy=s.y});
+  for(let k=0;k<150;k++){for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){const a=list[i],b=list[j];let vx=b.dx-a.dx,vy=b.dy-a.dy,d=Math.hypot(vx,vy);const m=27;if(d<m){if(d<0.01){vx=1;vy=0.3;d=1.04}const p=(m-d)/2,ux=vx/d,uy=vy/d;a.dx-=ux*p;a.dy-=uy*p;b.dx+=ux*p;b.dy+=uy*p}}}
+  return {list,W,H,sc};
+}
+
+function mapSVG(L){
+  const {list,W,H,sc}=L;
+  const A=list[0],Z=list[list.length-1];
+  let dx=Z.x-A.x,dy=Z.y-A.y;const len=Math.hypot(dx,dy)||1;dx/=len;dy/=len;
+  let nx=-dy,ny=dx;if(nx>0){nx=-nx;ny=-ny}
+  let far=0;list.forEach(s=>{const d=(s.x-A.x)*nx+(s.y-A.y)*ny;if(d>far)far=d});
+  const off=Math.max(22,far+18),ext=400;
+  const E1=[A.x-dx*ext+nx*off,A.y-dy*ext+ny*off],E2=[Z.x+dx*ext+nx*off,Z.y+dy*ext+ny*off];
+  const bar=sc>0.4?100:500,barPx=bar*sc;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of ${esc(state.area)} coffee spots"><rect width="${W}" height="${H}" fill="#FAF7F0"/>`;
+  s+=`<polygon points="${E1[0]},${E1[1]} ${E2[0]},${E2[1]} -30,${H+120} -30,-120" fill="#DCEBF7"/>`;
+  s+=`<line x1="${E1[0]}" y1="${E1[1]}" x2="${E2[0]}" y2="${E2[1]}" stroke="#F1E3C6" stroke-width="8"/>`;
+  s+=`<text x="26" y="${H/2}" font-size="12" fill="#378ADD" letter-spacing="3" text-anchor="middle" transform="rotate(-90 26 ${H/2})">FALSE BAY</text>`;
+  s+=`<g transform="translate(348,34)"><line x1="0" y1="14" x2="0" y2="-6" stroke="#1A1410" stroke-width="1.5"/><polygon points="0,-12 -5,-3 5,-3" fill="#1A1410"/><text x="-4" y="30" font-size="11" fill="#7A6F65">N</text></g>`;
+  s+=`<g transform="translate(${W-barPx-20},${H-18})"><line x1="0" y1="0" x2="${barPx}" y2="0" stroke="#1A1410" stroke-width="2"/><line x1="0" y1="-4" x2="0" y2="4" stroke="#1A1410" stroke-width="2"/><line x1="${barPx}" y1="-4" x2="${barPx}" y2="4" stroke="#1A1410" stroke-width="2"/><text x="0" y="-8" font-size="11" fill="#7A6F65">${bar} m</text></g>`;
+  list.forEach(p=>{if(Math.hypot(p.dx-p.x,p.dy-p.y)>4)s+=`<line x1="${p.x}" y1="${p.y}" x2="${p.dx}" y2="${p.dy}" stroke="#7A6F65" stroke-width="1"/>`;s+=`<circle cx="${p.x}" cy="${p.y}" r="2.5" fill="#1A1410"/>`});
+  list.forEach(p=>{const on=state.sel===p.id;
+    s+=`<g data-pin="${p.id}" style="cursor:pointer"><circle cx="${p.dx}" cy="${p.dy}" r="${on?15:12}" fill="${colour(p.type)}" stroke="${on?'#1A1410':'#fff'}" stroke-width="${on?3:2}"/><text x="${p.dx}" y="${p.dy+4}" text-anchor="middle" font-size="12" font-weight="500" fill="#fff" style="pointer-events:none">${p.n}</text></g>`});
+  if(state.sel){const p=list.find(q=>q.id===state.sel);if(p){const w=Math.min(p.name.length*6.4+16,230),lx=Math.min(Math.max(p.dx-w/2,6),W-w-6),ly=p.dy-34;
+    s+=`<g style="pointer-events:none"><rect x="${lx}" y="${ly}" width="${w}" height="22" rx="6" fill="#1A1410"/><text x="${lx+w/2}" y="${ly+15}" text-anchor="middle" font-size="12" fill="#fff">${esc(p.name.length>34?p.name.slice(0,33)+'...':p.name)}</text></g>`}}
+  return s+'</svg>';
+}
+
+function photoImg(id,cls){return `<img class="${cls}" src="photos/${id}.jpg" alt="" onerror="this.style.visibility='hidden'"/>`}
+
+function home(){
+  const L=layout(state.area);
+  const sel=state.sel&&L.list.find(s=>s.id===state.sel);
+  let h=`<div class="top"><div class="wm">Lekke<em>Bru</em></div><span style="font-size:12px;color:var(--muted)">${SPOTS.length} spots mapped</span></div>
+  <div class="hero"><h1>Where's the lekker coffee,<br><em>bru?</em></h1><p>Tap a pin to see the spot, then open it to see every rating.</p></div>
+  <div class="tabs">${AREAS.map(a=>`<button class="tab${a===state.area?' on':''}" data-area="${esc(a)}">${esc(a)}</button>`).join('')}</div>
+  <div class="mapwrap">${mapSVG(L)}</div>
+  <div class="legend"><span><i style="background:#1D6B4B"></i>Fixed shop</span><span><i style="background:#BA7517"></i>Mobile trailer or kiosk</span></div>`;
+  if(sel){const o=overall(sel.id);
+    h+=`<div class="prev">${photoImg(sel.id,'thumb')}<div style="flex:1;min-width:0"><div class="pv-name">${sel.n}. ${esc(sel.name)}</div><div class="pv-sub"><span class="chip ${sel.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(sel.type)}</span>${o?`<span class="score">${o}</span> / 10`:'Not rated yet'}</div><button class="btn" data-open="${sel.id}">See photo and ratings</button></div></div>`;
+  }else h+=`<div class="prev empty">Tap a pin on the map or a name below.</div>`;
+  h+=`<div class="list"><h2>${esc(state.area)} spots, north to south</h2>`;
+  L.list.forEach(s=>{const o=overall(s.id);
+    h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num" style="background:${colour(s.type)}">${s.n}</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span><br><span style="font-size:12px;color:var(--muted)">${typeLabel(s.type)}</span></span><span class="score" style="font-size:16px">${o||'<span style="font-family:DM Sans;font-weight:400;font-size:12px;color:var(--muted)">Not rated</span>'}</span></button>`});
+  h+=`</div><div class="foot">Ratings, roast notes and comments are saved on this phone only for now. Tap below to copy them so they can be added to the shared app.<br><button class="btn alt" data-export="1">Copy all my ratings</button><div id="exp"></div></div>`;
+  return h;
+}
+
+function detail(){
+  const s=spot(state.detail),r=rec(s.id),o=overall(s.id);
+  let h=`<div class="top"><button class="back" data-back="1">&larr; Back to map</button><div class="wm">Lekke<em>Bru</em></div></div>
+  ${photoImg(s.id,'photo')}
+  <div class="ident"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><h1>${esc(s.name)}</h1><div style="margin-top:8px"><span class="chip ${s.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(s.type)}</span><span style="font-size:12px;color:var(--muted)">${esc(s.area)}</span></div></div><div><div class="big" id="ov">${o||'-'}</div><div style="font-size:11px;color:var(--muted);text-align:right">${o?'LekkeScore':'Not rated'}</div></div></div></div>
+  <a class="dir" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" rel="noopener">Get directions</a>
+  <div class="sec"><h3>The coffee</h3>
+    <label style="margin-top:0">Roast used</label>
+    <div class="roasts">${ROASTS.map(x=>`<button class="rb${r.roast===x?' on':''}" data-roast="${x}">${x}</button>`).join('')}</div>
+    <label>Roaster or beans</label><input class="in" data-field="roaster" value="${esc(r.roaster)}" placeholder="Which roaster or origin?"/>
+    <label>Typical price for a flat white</label><input class="in" data-field="price" value="${esc(r.price)}" placeholder="R__"/>
+  </div>
+  <div class="sec"><h3>Ratings out of 10</h3>`;
+  CATS.forEach(([k,lbl])=>{const v=r.scores[k],has=typeof v==='number';
+    h+=`<div class="rate"><div class="rate-top"><span>${lbl}</span><span><span class="rate-val${has?'':' none'}" id="v-${k}">${has?v:'Not rated'}</span></span></div><input type="range" min="0" max="10" step="0.5" value="${has?v:5}" data-cat="${k}"/><button class="clr" data-clear="${k}">Clear</button></div>`});
+  h+=`</div><div class="sec"><h3>Your notes</h3><textarea class="in" data-field="notes" placeholder="What stood out? Best seat, best time, what to order">${esc(r.notes)}</textarea></div>
+  <div class="sec"><h3>Opening hours</h3><div style="font-size:14px;color:var(--muted)">Not added yet.</div></div>
+  <div class="note">Saved on this phone only for now.</div><div class="foot"><button class="btn alt" data-export="1">Copy all my ratings</button><div id="exp"></div></div>`;
+  return h;
+}
+
+function render(){
+  const y=window.scrollY;
+  document.getElementById('app').innerHTML=state.detail?detail():home();
+  window.scrollTo(0,state.detail?window.scrollY:y);
+}
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2200)}
+function exportAll(){
+  const out={};Object.keys(db).forEach(id=>{const r=db[id];if(Object.keys(r.scores).length||r.roast||r.roaster||r.price||r.notes)out[id]=r});
+  const txt=JSON.stringify(out,null,2);
+  const fallback=()=>{const e=document.getElementById('exp');if(e)e.innerHTML=`<textarea class="in" rows="8" style="margin-top:10px" readonly>${esc(txt)}</textarea>`;const t=e&&e.querySelector('textarea');if(t){t.focus();t.select()}};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>toast('Ratings copied')).catch(fallback)}else fallback();
+}
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export]');
+  if(!t)return;
+  if(t.dataset.pin||t.dataset.pick){const id=t.dataset.pin||t.dataset.pick;state.sel=state.sel===id?null:id;render()}
+  else if(t.dataset.open){state.detail=t.dataset.open;window.scrollTo(0,0);render()}
+  else if(t.dataset.area){state.area=t.dataset.area;state.sel=null;render()}
+  else if(t.dataset.back){state.detail=null;render()}
+  else if(t.dataset.roast){const r=rec(state.detail);r.roast=r.roast===t.dataset.roast?'':t.dataset.roast;save();render()}
+  else if(t.dataset.clear){const r=rec(state.detail);delete r.scores[t.dataset.clear];save();render()}
+  else if(t.dataset.export)exportAll();
+});
+document.addEventListener('input',e=>{
+  const c=e.target.dataset.cat;
+  if(c){const r=rec(state.detail);r.scores[c]=parseFloat(e.target.value);save();const v=document.getElementById('v-'+c);v.textContent=r.scores[c];v.classList.remove('none');const o=overall(state.detail);document.getElementById('ov').textContent=o||'-'}
+  const f=e.target.dataset.field;
+  if(f){rec(state.detail)[f]=e.target.value;save()}
+});
+render();
+</script>
+</body>
+</html>

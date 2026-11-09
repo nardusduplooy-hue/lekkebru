@@ -107,6 +107,7 @@ textarea.in{resize:vertical;min-height:64px}
 .mrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:14px}
 .mrow:last-child{border-bottom:none}
 .grid2{display:grid;grid-template-columns:2fr 1fr;gap:8px}
+.tilew{width:96px}.cov{font-size:12px;font-weight:500;color:var(--green-d);background:var(--green-l);border-radius:6px;text-align:center;padding:3px;margin-top:6px;width:88px}.mk{width:88px;margin-top:6px;border:0.5px solid var(--border);background:var(--card);border-radius:6px;font-size:12px;padding:5px 4px;cursor:pointer;color:var(--text)}
 .ok{font-size:12px;color:var(--green-d);margin-top:6px}
 </style>
 </head>
@@ -158,7 +159,7 @@ let db={};
 try{db=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){db={}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){return false}}
 function rec(id){if(!db[id])db[id]={scores:{},roast:'',roaster:'',price:'',notes:''};return db[id]}
-function vend(id){const r=rec(id);if(!r.vendor)r.vendor={open:false,openedAt:null,special:null,menu:[],menuPhotos:[],photos:[]};return r.vendor}
+function vend(id){const r=rec(id);if(!r.vendor)r.vendor={open:false,openedAt:null,special:null,about:'',roast:'',beans:'',flat:'',menu:[],menuPhotos:[],photos:[]};return r.vendor}
 function f1(x){return Number(x).toFixed(1)}
 function eff(id,k){const u=rec(id).scores[k];return typeof u==='number'?u:(DEMO[id]?DEMO[id][k]:null)}
 function overall(id){const v=CATS.map(c=>eff(id,c[0])).filter(x=>typeof x==='number');return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):null}
@@ -172,7 +173,7 @@ function status(id){const s=spot(id);if(!s||!s.owner)return null;return vend(id)
 function statusChip(id){const st=status(id);return st?`<span class="chip ${st==='open'?'c-open':'c-closed'}">${st==='open'?'Open now':'Closed'}</span>`:''}
 function coverSrc(s){if(s.owner){const v=vend(s.id);if(v.photos.length)return v.photos[0]}return `photos/${s.id}.jpg`}
 function img(s,cls){return `<img class="${cls}" src="${coverSrc(s)}" alt="" style="object-position:${s.owner?'38% 35%':'center'}" onerror="this.style.visibility='hidden'"/>`}
-let state={area:'Strand',sel:null,detail:null,view:'customer',draft:{},mainIdx:0};
+let state={area:'Strand',sel:null,detail:null,view:'customer',dtab:'about',draft:{},mainIdx:0};
 function initDraft(id){const s=spot(id);const sp=s&&s.owner?vend(id).special:null;state.draft={stitle:sp?sp.title:'',sdesc:sp?sp.desc:'',sprice:sp?sp.price:'',suntil:sp?sp.until:'',iname:'',iprice:''}}
 
 function layout(area){
@@ -218,18 +219,18 @@ function home(){
   const L=layout(state.area);
   const sel=state.sel&&L.list.find(s=>s.id===state.sel);
   let h=`<div class="top"><div class="wm">${logo()}Lekke<em>Bru</em></div><span style="font-size:12px;color:var(--muted)">${SPOTS.length} spots mapped</span></div>
-  <div class="hero"><h1>Where's the lekker coffee,<br><em>bru?</em></h1><p>Tap a pin to see the spot, then open it to see every rating.</p></div>
+  <div class="hero"><h1>Where's the lekker coffee,<br><em>bru?</em></h1><p>Tap a pin to see who's there, what's open and what's on today.</p></div>
   <div class="tabs">${AREAS.map(a=>`<button class="tab${a===state.area?' on':''}" data-area="${esc(a)}">${esc(a)}</button>`).join('')}</div>
   <div class="mapwrap">${mapSVG(L)}</div>
   <div class="legend"><span><i style="background:#1D6B4B"></i>Fixed shop</span><span><i style="background:#BA7517"></i>Mobile trailer or kiosk</span></div>`;
-  if(sel){const o=overall(sel.id),v=sel.owner?vend(sel.id):null;
-    const bars=[['coffee','Coffee taste'],['view','View'],['social','Social'],['value','Value']].map(([k,l])=>`<div class="brow"><span class="l">${l}</span><span class="bar"><i style="width:${eff(sel.id,k)*10}%"></i></span><b>${f1(eff(sel.id,k))}</b></div>`).join('');
-    h+=`<div class="prev2"><div style="display:flex;gap:12px;align-items:center">${img(sel,'thumb')}<div style="flex:1;min-width:0"><div class="pv-name">${sel.n}. ${esc(sel.name)}</div><div class="pv-sub"><span class="chip ${sel.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(sel.type)}</span>${statusChip(sel.id)}<span class="demo-tag" style="margin:0">demo</span></div></div><div style="text-align:right"><div class="score" style="font-size:30px;line-height:1">${o}</div><div style="font-size:11px;color:var(--muted)">LekkeScore</div></div></div>${v&&v.special?`<div class="spec-strip"><b>Today</b> ${specialLine(v)}</div>`:''}${bars}<div class="blurb">${blurb(sel)}</div><button class="btn" data-open="${sel.id}">See photo and all ratings</button></div>`;
+  if(sel){const v=sel.owner?vend(sel.id):null;
+    const about=sel.owner?(v.about?esc(v.about):''):'The owner has not added details yet.';
+    h+=`<div class="prev2"><div style="display:flex;gap:12px;align-items:center">${img(sel,'thumb')}<div style="flex:1;min-width:0"><div class="pv-name">${sel.n}. ${esc(sel.name)}</div><div class="pv-sub"><span class="chip ${sel.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(sel.type)}</span>${statusChip(sel.id)}</div></div></div>${v&&v.special?`<div class="spec-strip"><b>Today</b> ${specialLine(v)}</div>`:''}${about?`<div class="blurb">${about}</div>`:''}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-open="${sel.id}">See details</button><button class="btn alt" data-rate="${sel.id}">Ratings</button></div></div>`;
   }else h+=`<div class="prev">Tap a pin on the map or a name below.</div>`;
   h+=`<div class="prev2" style="background:var(--amber-l);border-color:#FAC775"><div style="font-weight:500">Owner test cart</div><div class="blurb" style="margin-top:4px">Narrie's Brew is a fictional cart. Open it to try what an owner can do: say you're open, post a special, upload a menu and photos.</div><button class="btn" data-owner="1">Open owner view</button></div>`;
   h+=`<div class="list"><h2>${esc(state.area)} spots, north to south</h2>`;
-  L.list.forEach(s=>{const o=overall(s.id);
-    h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num" style="background:${colour(s.type)}">${s.n}</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span>${s.owner?'<span class="tag-test">test</span>':''}<br><span style="font-size:12px;color:var(--muted)">${typeLabel(s.type)}</span>${s.owner?' '+statusChip(s.id):''}</span><span class="score" style="font-size:16px">${o}</span></button>`});
+  L.list.forEach(s=>{
+    h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num" style="background:${colour(s.type)}">${s.n}</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span>${s.owner?'<span class="tag-test">test</span>':''}<br><span style="font-size:12px;color:var(--muted)">${typeLabel(s.type)}</span>${s.owner?' '+statusChip(s.id):''}</span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`});
   h+=`</div><div class="foot">Ratings, notes and anything uploaded for the test cart are saved on this phone only for now. Tap below to copy the ratings so they can be added to the shared app.<br><button class="btn alt" data-export="1">Copy all my ratings</button><div id="exp"></div></div>`;
   return h;
 }
@@ -247,14 +248,29 @@ function menuView(v){
 }
 function ownerTools(s){
   const v=vend(s.id),d=state.draft;
-  let h=`<div class="note" style="margin-top:12px"><b>Owner view.</b> This is what a cart owner would manage. Switch to Customer view to see what the public sees.</div>
+  let h=`<div class="note" style="margin-top:12px"><b>Owner view.</b> This is what a cart owner manages. Switch to Customer view to see what the public sees.</div>
   <div class="sec"><h3>Are you open?</h3><div class="two"><button class="tg${v.open?' on-open':''}" data-setopen="1">Open now</button><button class="tg${!v.open?' on-closed':''}" data-setopen="0">Closed</button></div><div class="ok" style="color:var(--muted)">${v.openedAt?'Last updated at '+hhmm(v.openedAt):'Not updated yet'}. Customers see this on the map pin and in the list.</div></div>
+  <div class="sec"><h3>Cover photo and photos</h3>
+    <div style="font-size:13px;color:var(--muted)">${v.photos.length?'The photo marked Cover is the first one customers see, on the map card and at the top of your page. Tap Make cover on any photo to change it.':'Customers currently see the default illustration. Add a photo and it becomes your cover.'} Up to 8 photos.</div>
+    <div class="tiles">${v.photos.map((x,i)=>`<div class="tilew"><div class="tile"><img src="${x}" alt="Cart photo"/><button class="x" data-delphoto="${i}" aria-label="Remove photo">x</button></div>${i===0?'<div class="cov">Cover</div>':`<button class="mk" data-cover="${i}">Make cover</button>`}</div>`).join('')}</div>
+    <label class="file">Add photos<input type="file" accept="image/*" multiple data-upload="photos"/></label>
+  </div>
   <div class="sec"><h3>Today's special</h3>
     <label style="margin-top:0">Name</label><input class="in" data-draft="stitle" value="${esc(d.stitle)}" placeholder="e.g. Honey cinnamon flat white"/>
     <label>Description</label><textarea class="in" data-draft="sdesc" placeholder="One line that makes people walk over">${esc(d.sdesc)}</textarea>
     <div class="grid2"><div><label>Price</label><input class="in" data-draft="sprice" value="${esc(d.sprice)}" placeholder="R__"/></div><div><label>Until</label><input class="in" type="time" data-draft="suntil" value="${esc(d.suntil)}"/></div></div>
     <button class="btn" data-pub="1">Publish special</button>${v.special?' <button class="btn red" data-rmspecial="1">Remove special</button>':''}
     ${v.special?`<div class="ok">Live now: ${specialLine(v)}</div>`:''}
+  </div>
+  <div class="sec"><h3>About your cart</h3>
+    <label style="margin-top:0">What should people know about you?</label>
+    <textarea class="in" data-vfield="about" placeholder="Your story, what makes your coffee special, where you usually park">${esc(v.about)}</textarea>
+  </div>
+  <div class="sec"><h3>Your coffee</h3>
+    <label style="margin-top:0">Roast used</label>
+    <div class="roasts">${ROASTS.map(x=>`<button class="rb${v.roast===x?' on':''}" data-vroast="${x}">${x}</button>`).join('')}</div>
+    <label>Roaster or beans</label><input class="in" data-vfield="beans" value="${esc(v.beans)}" placeholder="Which roaster or origin?"/>
+    <label>Price of a flat white</label><input class="in" data-vfield="flat" value="${esc(v.flat)}" placeholder="R__"/>
   </div>
   <div class="sec"><h3>Menu</h3>
     <div style="font-size:13px;color:var(--muted)">Upload a photo of your menu board, and add items so people can see prices.</div>
@@ -264,39 +280,49 @@ function ownerTools(s){
     <div class="grid2" style="margin-top:8px"><div><label>Item</label><input class="in" data-draft="iname" value="${esc(d.iname)}" placeholder="Flat white"/></div><div><label>Price</label><input class="in" data-draft="iprice" value="${esc(d.iprice)}" placeholder="R38"/></div></div>
     <button class="btn alt" data-additem="1">Add item</button>
   </div>
-  <div class="sec"><h3>Photos</h3>
-    <div style="font-size:13px;color:var(--muted)">The first photo is the cover on the map card. Up to 8 photos.</div>
-    <div class="tiles">${v.photos.map((x,i)=>`<div class="tile"><img src="${x}" alt="Cart photo"/><button class="x" data-delphoto="${i}" aria-label="Remove photo">x</button></div>`).join('')}</div>
-    <label class="file">Add photos<input type="file" accept="image/*" multiple data-upload="photos"/></label>
-  </div>
   <div class="sec"><h3>Test data</h3><div style="font-size:13px;color:var(--muted)">Everything above is stored on this phone only.</div><button class="btn red" data-reset="1">Clear all test data for this cart</button></div>`;
   return h;
 }
 
-function detail(){
-  const s=spot(state.detail),r=rec(s.id),o=overall(s.id),v=s.owner?vend(s.id):null,owner=s.owner&&state.view==='owner';
-  let h=`<div class="top"><button class="back" data-back="1">&larr; Back to map</button><div class="wm">${logo()}Lekke<em>Bru</em></div></div>`;
-  if(s.owner)h+=`<div class="seg"><button class="${owner?'on':''}" data-view="owner">Owner view</button><button class="${owner?'':'on'}" data-view="customer">Customer view</button></div>`;
-  h+=gallery(s);
-  h+=`<div class="ident"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><h1>${esc(s.name)}${s.owner?'<span class="tag-test">test cart</span>':''}</h1><div style="margin-top:8px"><span class="chip ${s.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(s.type)}</span>${statusChip(s.id)}<span style="font-size:12px;color:var(--muted)">${esc(s.area)}</span></div></div><div><div class="big" id="ov">${o||'-'}</div><div style="font-size:11px;color:var(--muted);text-align:right">LekkeScore</div></div></div></div>`;
-  if(owner){h+=ownerTools(s);return h}
-  h+=`<div class="note" style="margin-top:12px">Demo ratings for now. They are placeholders until real reviews come in, and any rating you set replaces the demo one.</div>`;
+function aboutTab(s,r,v){
+  let h='';
+  if(v&&v.about)h+=`<div class="sec"><h3>From the owner</h3><div style="font-size:15px;line-height:1.5">${esc(v.about)}</div></div>`;
   if(v&&v.special)h+=`<div class="sp"><div class="eb">Today's special</div><div class="tt">${esc(v.special.title)}</div>${v.special.desc?`<div class="ds">${esc(v.special.desc)}</div>`:''}<div class="un">${v.special.price?esc(v.special.price):''}${v.special.price&&v.special.until?' · ':''}${v.special.until?'Until '+esc(v.special.until):''}</div></div>`;
   h+=`<a class="dir" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" rel="noopener">Get directions</a>`;
   if(v)h+=menuView(v);
-  h+=`<div class="sec"><h3>The coffee</h3>
+  if(s.owner){
+    const bits=[v.roast&&['Roast',v.roast],v.beans&&['Beans',v.beans],v.flat&&['Flat white',v.flat]].filter(Boolean);
+    h+=`<div class="sec"><h3>The coffee</h3>${bits.length?bits.map(([k,x])=>`<div class="mrow"><span style="color:var(--muted)">${k}</span><b>${esc(x)}</b></div>`).join(''):'<div style="font-size:14px;color:var(--muted)">Not added yet.</div>'}</div>`;
+  }else{
+    h+=`<div class="sec"><h3>The coffee</h3><div style="font-size:12px;color:var(--muted);margin-bottom:6px">No owner has claimed this spot yet. Add what you know.</div>
     <label style="margin-top:0">Roast used</label>
     <div class="roasts">${ROASTS.map(x=>`<button class="rb${r.roast===x?' on':''}" data-roast="${x}">${x}</button>`).join('')}</div>
     <label>Roaster or beans</label><input class="in" data-field="roaster" value="${esc(r.roaster)}" placeholder="Which roaster or origin?"/>
-    <label>Typical price for a flat white</label><input class="in" data-field="price" value="${esc(r.price)}" placeholder="R__"/>
-  </div>
-  <div class="sec"><h3>Ratings out of 10</h3>`;
+    <label>Typical price for a flat white</label><input class="in" data-field="price" value="${esc(r.price)}" placeholder="R__"/></div>`;
+  }
+  h+=`<div class="sec"><h3>Opening hours</h3><div style="font-size:14px;color:var(--muted)">Not added yet.</div></div>`;
+  h+=`<div class="note">Want to know how others rate it? Open the Ratings tab.</div><div style="height:40px"></div>`;
+  return h;
+}
+function ratingsTab(s,r){
+  const o=overall(s.id);
+  let h=`<div class="sec"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h3 style="margin:0">LekkeScore</h3><div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4">Demo scores for now. They are placeholders until real ratings come in, and any rating you set replaces the demo one.</div></div><div class="big" id="ov">${o}</div></div></div>
+  <div class="sec"><h3>Rate this spot, out of 10</h3>`;
   CATS.forEach(([k,lbl])=>{const u=r.scores[k],has=typeof u==='number',val=eff(s.id,k);
     h+=`<div class="rate"><div class="rate-top"><span>${lbl}</span><span><span class="rate-val" id="v-${k}">${f1(val)}</span><span class="demo-tag" id="d-${k}"${has?' hidden':''}>demo</span></span></div><input type="range" min="0" max="10" step="0.5" value="${val}" data-cat="${k}"/><button class="clr" id="c-${k}" data-clear="${k}"${has?'':' hidden'}>Reset to demo</button></div>`});
   h+=`</div><div class="sec"><h3>Your notes</h3><textarea class="in" data-field="notes" placeholder="What stood out? Best seat, best time, what to order">${esc(r.notes)}</textarea></div>
-  <div class="sec"><h3>Opening hours</h3><div style="font-size:14px;color:var(--muted)">Not added yet.</div></div>
   <div class="note">Saved on this phone only for now.</div><div class="foot"><button class="btn alt" data-export="1">Copy all my ratings</button><div id="exp"></div></div>`;
   return h;
+}
+function detail(){
+  const s=spot(state.detail),r=rec(s.id),v=s.owner?vend(s.id):null,owner=s.owner&&state.view==='owner';
+  let h=`<div class="top"><button class="back" data-back="1">&larr; Back to map</button><div class="wm">${logo()}Lekke<em>Bru</em></div></div>`;
+  if(s.owner)h+=`<div class="seg"><button class="${owner?'on':''}" data-view="owner">Owner view</button><button class="${owner?'':'on'}" data-view="customer">Customer view</button></div>`;
+  h+=gallery(s);
+  h+=`<div class="ident"><h1>${esc(s.name)}${s.owner?'<span class="tag-test">test cart</span>':''}</h1><div style="margin-top:8px"><span class="chip ${s.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(s.type)}</span>${statusChip(s.id)}<span style="font-size:12px;color:var(--muted)">${esc(s.area)}</span></div></div>`;
+  if(owner)return h+ownerTools(s);
+  h+=`<div class="seg"><button class="${state.dtab==='about'?'on':''}" data-tab="about">About</button><button class="${state.dtab==='ratings'?'on':''}" data-tab="ratings">Ratings</button></div>`;
+  return h+(state.dtab==='ratings'?ratingsTab(s,r):aboutTab(s,r,v));
 }
 
 function render(){
@@ -310,22 +336,26 @@ function exportAll(){
   Object.keys(db).forEach(id=>{const r=db[id],o={};
     if(Object.keys(r.scores).length)o.scores=r.scores;
     ['roast','roaster','price','notes'].forEach(k=>{if(r[k])o[k]=r[k]});
-    if(r.vendor){const v=r.vendor;o.vendor={open:v.open,special:v.special,menu:v.menu,photoCount:v.photos.length,menuPhotoCount:v.menuPhotos.length}}
+    if(r.vendor){const v=r.vendor;o.vendor={open:v.open,special:v.special,about:v.about,roast:v.roast,beans:v.beans,flat:v.flat,menu:v.menu,photoCount:v.photos.length,menuPhotoCount:v.menuPhotos.length}}
     if(Object.keys(o).length)out[id]=o});
   const txt=JSON.stringify(out,null,2);
   const fallback=()=>{const e=document.getElementById('exp');if(e)e.innerHTML=`<textarea class="in" rows="8" style="margin-top:10px" readonly>${esc(txt)}</textarea>`;const t=e&&e.querySelector('textarea');if(t){t.focus();t.select()}};
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>toast('Ratings copied')).catch(fallback)}else fallback();
 }
 function shrink(file,max,q){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',q))};im.onerror=rej;im.src=fr.result};fr.onerror=rej;fr.readAsDataURL(file)})}
-function openDetail(id,view){state.detail=id;state.view=view||'customer';state.mainIdx=0;initDraft(id);window.scrollTo(0,0);render()}
+function openDetail(id,view,tab){state.detail=id;state.view=view||'customer';state.dtab=tab||'about';state.mainIdx=0;initDraft(id);window.scrollTo(0,0);render()}
 
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export],[data-setopen],[data-pub],[data-rmspecial],[data-additem],[data-delitem],[data-delphoto],[data-delmenu],[data-reset],[data-view],[data-main],[data-owner]');
+  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export],[data-setopen],[data-pub],[data-rmspecial],[data-additem],[data-delitem],[data-delphoto],[data-delmenu],[data-reset],[data-view],[data-main],[data-owner],[data-rate],[data-tab],[data-cover],[data-vroast]');
   if(!t)return;
   const d=t.dataset,id=state.detail;
   if(d.pin||d.pick){const p=d.pin||d.pick;state.sel=state.sel===p?null:p;render();const c=document.querySelector('.prev2');if(c)c.scrollIntoView({behavior:'smooth',block:'nearest'})}
-  else if(d.open){openDetail(d.open,'customer')}
-  else if(d.owner!==undefined){state.area='Strand';openDetail('narries-brew','owner')}
+  else if(d.open){openDetail(d.open,'customer','about')}
+  else if(d.rate){openDetail(d.rate,'customer','ratings')}
+  else if(d.tab){state.dtab=d.tab;render()}
+  else if(d.cover!==undefined){const ph=vend(id).photos,i=parseInt(d.cover,10);ph.unshift(ph.splice(i,1)[0]);state.mainIdx=0;save();render();toast('Cover photo changed')}
+  else if(d.vroast){const v=vend(id);v.roast=v.roast===d.vroast?'':d.vroast;save();render()}
+  else if(d.owner!==undefined){state.area='Strand';openDetail('narries-brew','owner','about')}
   else if(d.area){state.area=d.area;state.sel=null;render()}
   else if(d.back!==undefined){state.detail=null;window.scrollTo(0,0);render()}
   else if(d.view){state.view=d.view;render()}
@@ -347,6 +377,7 @@ document.addEventListener('input',e=>{
   if(c){const r=rec(state.detail);r.scores[c]=parseFloat(t.value);save();document.getElementById('v-'+c).textContent=f1(r.scores[c]);document.getElementById('d-'+c).hidden=true;document.getElementById('c-'+c).hidden=false;const o=overall(state.detail);document.getElementById('ov').textContent=o||'-'}
   if(t.dataset.field){rec(state.detail)[t.dataset.field]=t.value;save()}
   if(t.dataset.draft)state.draft[t.dataset.draft]=t.value;
+  if(t.dataset.vfield){vend(state.detail)[t.dataset.vfield]=t.value;save()}
 });
 document.addEventListener('change',async e=>{
   const t=e.target;

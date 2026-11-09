@@ -65,7 +65,7 @@ label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
 textarea.in{resize:vertical;min-height:64px}
 .dir{display:block;text-align:center;text-decoration:none;background:var(--text);color:#fff;border-radius:12px;padding:14px;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin:12px 20px 0}
 .note{font-size:12px;color:var(--muted);margin:10px 20px 0}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99}
+.brow{display:flex;align-items:center;gap:8px;font-size:12px;margin-top:6px}.brow .l{width:96px;color:var(--muted)}.bar{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:var(--green)}.brow b{width:26px;text-align:right;font-family:'Syne',sans-serif}.demo-tag{font-size:10px;background:var(--amber-l);color:#633806;border-radius:4px;padding:2px 6px;margin-left:4px}.blurb{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.4}.prev2{scroll-margin-top:70px;scroll-margin-bottom:16px;margin:12px 20px 0;background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:12px}.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99}
 </style>
 </head>
 <body>
@@ -90,13 +90,33 @@ const SPOTS=[
 ];
 const CATS=[['coffee','Coffee taste'],['view','View'],['social','Social and atmosphere'],['value','Value for money'],['service','Service and friendliness'],['food','Food and treats'],['comfort','Seating and comfort'],['reliability','Reliability (will they be there?)']];
 const ROASTS=['Light','Medium','Medium-dark','Dark','Not sure'];
+const DEMO={
+'on-the-go':{coffee:8.0,view:8.0,social:8.5,value:8.0,service:8.5,food:8.0,comfort:8.0,reliability:9.0},
+'bootlegger':{coffee:8.5,view:8.0,social:8.5,value:7.5,service:8.0,food:8.0,comfort:8.5,reliability:9.0},
+'unnamed-cafe-parking':{coffee:8.0,view:8.5,social:8.0,value:8.0,service:8.0,food:7.5,comfort:7.5,reliability:8.5},
+'merkava-coffee':{coffee:8.5,view:8.5,social:8.0,value:8.0,service:8.5,food:8.0,comfort:8.0,reliability:9.0},
+'plato-coffee':{coffee:8.5,view:8.0,social:8.5,value:8.0,service:8.0,food:8.0,comfort:8.5,reliability:9.0},
+'seattle-coffee-co':{coffee:8.0,view:8.5,social:8.5,value:8.0,service:8.0,food:8.5,comfort:8.5,reliability:9.0},
+'belgian-waffle-house':{coffee:8.0,view:8.0,social:9.0,value:8.0,service:8.5,food:9.0,comfort:8.5,reliability:9.0},
+'vida-e-caffe':{coffee:8.0,view:8.0,social:8.0,value:8.5,service:8.0,food:8.5,comfort:8.0,reliability:9.0},
+'coffee-shop-106-grasse':{coffee:8.0,view:7.5,social:8.0,value:8.5,service:8.5,food:7.5,comfort:7.5,reliability:9.0},
+'chilli-bean-co':{coffee:9.0,view:9.5,social:8.5,value:8.5,service:8.5,food:8.0,comfort:8.0,reliability:9.0},
+'colourful-trailer':{coffee:8.5,view:9.0,social:8.5,value:9.0,service:9.0,food:7.5,comfort:7.5,reliability:7.5},
+'glass-building-cafe':{coffee:8.0,view:8.5,social:8.5,value:8.0,service:8.0,food:8.0,comfort:8.5,reliability:9.0},
+'black-trailer':{coffee:8.5,view:9.0,social:9.0,value:9.0,service:9.0,food:7.5,comfort:7.5,reliability:7.5},
+'blue-kiosk':{coffee:8.0,view:9.5,social:8.5,value:9.0,service:8.5,food:8.0,comfort:8.0,reliability:8.0},
+'boutique-roastery':{coffee:9.0,view:8.0,social:8.5,value:8.5,service:8.5,food:8.5,comfort:8.0,reliability:9.0}
+};
+function blurb(s){return s.type==='fixed'?'Good coffee, friendly people and a lekker beachfront setting.':'A friendly pop-up with real beachfront character and a coffee worth stopping for.'}
 const AREAS=['Strand',"Gordon's Bay"];
 const KEY='lekkebru:v1';
 let db={};
 try{db=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){db={}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
 function rec(id){if(!db[id])db[id]={scores:{},roast:'',roaster:'',price:'',notes:''};return db[id]}
-function overall(id){const v=Object.values(rec(id).scores).filter(x=>typeof x==='number');return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):null}
+function f1(x){return Number(x).toFixed(1)}
+function eff(id,k){const u=rec(id).scores[k];return typeof u==='number'?u:(DEMO[id]?DEMO[id][k]:null)}
+function overall(id){const v=CATS.map(c=>eff(id,c[0])).filter(x=>typeof x==='number');return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):null}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function spot(id){return SPOTS.find(s=>s.id===id)}
 function colour(t){return t==='fixed'?'#1D6B4B':'#BA7517'}
@@ -151,7 +171,8 @@ function home(){
   <div class="mapwrap">${mapSVG(L)}</div>
   <div class="legend"><span><i style="background:#1D6B4B"></i>Fixed shop</span><span><i style="background:#BA7517"></i>Mobile trailer or kiosk</span></div>`;
   if(sel){const o=overall(sel.id);
-    h+=`<div class="prev">${photoImg(sel.id,'thumb')}<div style="flex:1;min-width:0"><div class="pv-name">${sel.n}. ${esc(sel.name)}</div><div class="pv-sub"><span class="chip ${sel.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(sel.type)}</span>${o?`<span class="score">${o}</span> / 10`:'Not rated yet'}</div><button class="btn" data-open="${sel.id}">See photo and ratings</button></div></div>`;
+    const bars=[['coffee','Coffee taste'],['view','View'],['social','Social'],['value','Value']].map(([k,l])=>`<div class="brow"><span class="l">${l}</span><span class="bar"><i style="width:${eff(sel.id,k)*10}%"></i></span><b>${f1(eff(sel.id,k))}</b></div>`).join('');
+    h+=`<div class="prev2"><div style="display:flex;gap:12px;align-items:center">${photoImg(sel.id,'thumb')}<div style="flex:1;min-width:0"><div class="pv-name">${sel.n}. ${esc(sel.name)}</div><div class="pv-sub"><span class="chip ${sel.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(sel.type)}</span><span class="demo-tag" style="margin:0">demo</span></div></div><div style="text-align:right"><div class="score" style="font-size:30px;line-height:1">${o}</div><div style="font-size:11px;color:var(--muted)">LekkeScore</div></div></div>${bars}<div class="blurb">${blurb(sel)}</div><button class="btn" data-open="${sel.id}">See photo and all ratings</button></div>`;
   }else h+=`<div class="prev empty">Tap a pin on the map or a name below.</div>`;
   h+=`<div class="list"><h2>${esc(state.area)} spots, north to south</h2>`;
   L.list.forEach(s=>{const o=overall(s.id);
@@ -164,7 +185,8 @@ function detail(){
   const s=spot(state.detail),r=rec(s.id),o=overall(s.id);
   let h=`<div class="top"><button class="back" data-back="1">&larr; Back to map</button><div class="wm">Lekke<em>Bru</em></div></div>
   ${photoImg(s.id,'photo')}
-  <div class="ident"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><h1>${esc(s.name)}</h1><div style="margin-top:8px"><span class="chip ${s.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(s.type)}</span><span style="font-size:12px;color:var(--muted)">${esc(s.area)}</span></div></div><div><div class="big" id="ov">${o||'-'}</div><div style="font-size:11px;color:var(--muted);text-align:right">${o?'LekkeScore':'Not rated'}</div></div></div></div>
+  <div class="ident"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><h1>${esc(s.name)}</h1><div style="margin-top:8px"><span class="chip ${s.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(s.type)}</span><span style="font-size:12px;color:var(--muted)">${esc(s.area)}</span></div></div><div><div class="big" id="ov">${o||'-'}</div><div style="font-size:11px;color:var(--muted);text-align:right">LekkeScore</div></div></div></div>
+  <div class="note" style="margin-top:12px">Demo ratings for now. They are placeholders until real reviews come in, and any rating you set replaces the demo one.</div>
   <a class="dir" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" rel="noopener">Get directions</a>
   <div class="sec"><h3>The coffee</h3>
     <label style="margin-top:0">Roast used</label>
@@ -173,8 +195,8 @@ function detail(){
     <label>Typical price for a flat white</label><input class="in" data-field="price" value="${esc(r.price)}" placeholder="R__"/>
   </div>
   <div class="sec"><h3>Ratings out of 10</h3>`;
-  CATS.forEach(([k,lbl])=>{const v=r.scores[k],has=typeof v==='number';
-    h+=`<div class="rate"><div class="rate-top"><span>${lbl}</span><span><span class="rate-val${has?'':' none'}" id="v-${k}">${has?v:'Not rated'}</span></span></div><input type="range" min="0" max="10" step="0.5" value="${has?v:5}" data-cat="${k}"/><button class="clr" data-clear="${k}">Clear</button></div>`});
+  CATS.forEach(([k,lbl])=>{const u=r.scores[k],has=typeof u==='number',v=eff(s.id,k);
+    h+=`<div class="rate"><div class="rate-top"><span>${lbl}</span><span><span class="rate-val" id="v-${k}">${f1(v)}</span><span class="demo-tag" id="d-${k}"${has?' hidden':''}>demo</span></span></div><input type="range" min="0" max="10" step="0.5" value="${v}" data-cat="${k}"/><button class="clr" id="c-${k}" data-clear="${k}"${has?'':' hidden'}>Reset to demo</button></div>`});
   h+=`</div><div class="sec"><h3>Your notes</h3><textarea class="in" data-field="notes" placeholder="What stood out? Best seat, best time, what to order">${esc(r.notes)}</textarea></div>
   <div class="sec"><h3>Opening hours</h3><div style="font-size:14px;color:var(--muted)">Not added yet.</div></div>
   <div class="note">Saved on this phone only for now.</div><div class="foot"><button class="btn alt" data-export="1">Copy all my ratings</button><div id="exp"></div></div>`;
@@ -197,7 +219,7 @@ function exportAll(){
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export]');
   if(!t)return;
-  if(t.dataset.pin||t.dataset.pick){const id=t.dataset.pin||t.dataset.pick;state.sel=state.sel===id?null:id;render()}
+  if(t.dataset.pin||t.dataset.pick){const id=t.dataset.pin||t.dataset.pick;state.sel=state.sel===id?null:id;render();const c=document.querySelector('.prev2');if(c)c.scrollIntoView({behavior:'smooth',block:'nearest'})}
   else if(t.dataset.open){state.detail=t.dataset.open;window.scrollTo(0,0);render()}
   else if(t.dataset.area){state.area=t.dataset.area;state.sel=null;render()}
   else if(t.dataset.back){state.detail=null;render()}
@@ -207,7 +229,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('input',e=>{
   const c=e.target.dataset.cat;
-  if(c){const r=rec(state.detail);r.scores[c]=parseFloat(e.target.value);save();const v=document.getElementById('v-'+c);v.textContent=r.scores[c];v.classList.remove('none');const o=overall(state.detail);document.getElementById('ov').textContent=o||'-'}
+  if(c){const r=rec(state.detail);r.scores[c]=parseFloat(e.target.value);save();document.getElementById('v-'+c).textContent=f1(r.scores[c]);document.getElementById('d-'+c).hidden=true;document.getElementById('c-'+c).hidden=false;const o=overall(state.detail);document.getElementById('ov').textContent=o||'-'}
   const f=e.target.dataset.field;
   if(f){rec(state.detail)[f]=e.target.value;save()}
 });

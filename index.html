@@ -124,6 +124,7 @@ function rec(id){if(!db[id])db[id]={scores:{},roast:'',roaster:'',price:'',notes
 function f1(x){return Number(x).toFixed(1)}
 function eff(id,k){const u=rec(id).scores[k];return typeof u==='number'?u:(DEMO[id]?DEMO[id][k]:null)}
 function overall(id){const v=CATS.map(c=>eff(id,c[0])).filter(x=>typeof x==='number');return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):null}
+function logo(){return `<svg width="22" height="24" viewBox="0 0 24 26" fill="none" stroke="#1D6B4B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:6px" aria-hidden="true"><path d="M8 7c-1.5-1.7 1.5-2.7 0-4.8M12 7c-1.5-1.7 1.5-2.7 0-4.8M16 7c-1.5-1.7 1.5-2.7 0-4.8"/><path d="M5 11h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z" fill="#1D6B4B"/><path d="M17 12.5h1.4a2.6 2.6 0 0 1 0 5.2H17"/><path d="M3 24h18"/></svg>`}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function spot(id){return SPOTS.find(s=>s.id===id)}
 function colour(t){return t==='fixed'?'#1D6B4B':'#BA7517'}
@@ -172,7 +173,7 @@ function photoImg(id,cls){return `<img class="${cls}" src="photos/${id}.jpg" alt
 function home(){
   const L=layout(state.area);
   const sel=state.sel&&L.list.find(s=>s.id===state.sel);
-  let h=`<div class="top"><div class="wm">Lekke<em>Bru</em></div><span style="font-size:12px;color:var(--muted)">${SPOTS.length} spots mapped</span></div>
+  let h=`<div class="top"><div class="wm">${logo()}Lekke<em>Bru</em></div><span style="font-size:12px;color:var(--muted)">${SPOTS.length} spots mapped</span></div>
   <div class="hero"><h1>Where's the lekker coffee,<br><em>bru?</em></h1><p>Tap a pin to see the spot, then open it to see every rating.</p></div>
   <div class="tabs">${AREAS.map(a=>`<button class="tab${a===state.area?' on':''}" data-area="${esc(a)}">${esc(a)}</button>`).join('')}</div>
   <div class="mapwrap">${mapSVG(L)}</div>
@@ -190,7 +191,7 @@ function home(){
 
 function detail(){
   const s=spot(state.detail),r=rec(s.id),o=overall(s.id);
-  let h=`<div class="top"><button class="back" data-back="1">&larr; Back to map</button><div class="wm">Lekke<em>Bru</em></div></div>
+  let h=`<div class="top"><button class="back" data-back="1">&larr; Back to map</button><div class="wm">${logo()}Lekke<em>Bru</em></div></div>
   ${photoImg(s.id,'photo')}
   <div class="ident"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><h1>${esc(s.name)}</h1><div style="margin-top:8px"><span class="chip ${s.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(s.type)}</span><span style="font-size:12px;color:var(--muted)">${esc(s.area)}</span></div></div><div><div class="big" id="ov">${o||'-'}</div><div style="font-size:11px;color:var(--muted);text-align:right">LekkeScore</div></div></div></div>
   <div class="note" style="margin-top:12px">Demo ratings for now. They are placeholders until real reviews come in, and any rating you set replaces the demo one.</div>

@@ -108,6 +108,12 @@ textarea.in{resize:vertical;min-height:64px}
 .mrow:last-child{border-bottom:none}
 .grid2{display:grid;grid-template-columns:2fr 1fr;gap:8px}
 .tilew{width:96px}.cov{font-size:12px;font-weight:500;color:var(--green-d);background:var(--green-l);border-radius:6px;text-align:center;padding:3px;margin-top:6px;width:88px}.mk{width:88px;margin-top:6px;border:0.5px solid var(--border);background:var(--card);border-radius:6px;font-size:12px;padding:5px 4px;cursor:pointer;color:var(--text)}
+.ph{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;background:#D4E8DC;color:#3B6D11;font-size:13px}
+.tabs{overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}.tab{white-space:nowrap;flex-shrink:0}
+a.btn{display:inline-block;text-decoration:none}
+.btn.full{display:block;width:100%;text-align:center;padding:14px}
+.msgbox{background:var(--bg);border:0.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.45;margin:10px 0;white-space:pre-wrap;word-break:break-word}
+select.in{appearance:auto}
 .ok{font-size:12px;color:var(--green-d);margin-top:6px}
 </style>
 </head>
@@ -153,10 +159,19 @@ const DEMO={
 'boutique-roastery':{coffee:9.0,view:8.0,social:8.5,value:8.5,service:8.5,food:8.5,comfort:8.0,reliability:9.0}
 };
 function blurb(s){return s.owner?'A fictional test cart. Nothing here is real, it exists so owner tools can be tried out.':s.type==='fixed'?'Good coffee, friendly people and a lekker beachfront setting.':'A friendly pop-up with real beachfront character and a coffee worth stopping for.'}
-const AREAS=['Strand',"Gordon's Bay"];
+const SEED_AREAS=['Strand',"Gordon's Bay"];
+function areas(){return SEED_AREAS.concat([...new Set(SPOTS.map(s=>s.area))].filter(a=>!SEED_AREAS.includes(a)))}
 const KEY='lekkebru:v1';
 let db={};
 try{db=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){db={}}
+const SKEY='lekkebru:spots',CKEY='lekkebru:contacts',LKEY='lekkebru:claims';
+let cts={},claims=[];
+try{cts=JSON.parse(localStorage.getItem(CKEY)||'{}')}catch(e){cts={}}
+try{claims=JSON.parse(localStorage.getItem(LKEY)||'[]')}catch(e){claims=[]}
+try{JSON.parse(localStorage.getItem(SKEY)||'[]').forEach(x=>{if(x&&x.id&&isFinite(x.lat)&&isFinite(x.lng))SPOTS.push(x)})}catch(e){}
+function saveSpots(){try{localStorage.setItem(SKEY,JSON.stringify(SPOTS.filter(x=>x.user)));return true}catch(e){return false}}
+function saveCts(){try{localStorage.setItem(CKEY,JSON.stringify(cts))}catch(e){}}
+function saveClaims(){try{localStorage.setItem(LKEY,JSON.stringify(claims))}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){return false}}
 function rec(id){if(!db[id])db[id]={scores:{},roast:'',roaster:'',price:'',notes:''};return db[id]}
 function vend(id){const r=rec(id);if(!r.vendor)r.vendor={open:false,openedAt:null,special:null,about:'',roast:'',beans:'',flat:'',menu:[],menuPhotos:[],photos:[]};return r.vendor}
@@ -171,9 +186,10 @@ function typeLabel(t){return t==='fixed'?'Fixed shop':'Mobile trailer or kiosk'}
 function hhmm(ts){return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
 function status(id){const s=spot(id);if(!s||!s.owner)return null;return vend(id).open?'open':'closed'}
 function statusChip(id){const st=status(id);return st?`<span class="chip ${st==='open'?'c-open':'c-closed'}">${st==='open'?'Open now':'Closed'}</span>`:''}
-function coverSrc(s){if(s.owner){const v=vend(s.id);if(v.photos.length)return v.photos[0]}return `photos/${s.id}.jpg`}
-function img(s,cls){return `<img class="${cls}" src="${coverSrc(s)}" alt="" style="object-position:${s.owner?'38% 35%':'center'}" onerror="this.style.visibility='hidden'"/>`}
-let state={area:'Strand',sel:null,detail:null,view:'customer',dtab:'about',draft:{},mainIdx:0};
+function coverSrc(s){if(s.photo)return s.photo;if(s.owner){const v=vend(s.id);if(v.photos.length)return v.photos[0]}return `photos/${s.id}.jpg`}
+function hasPic(s){return !!(s.photo||s.owner||!s.user)}
+function img(s,cls){if(!hasPic(s))return `<div class="${cls} ph">${logo()}</div>`;return `<img class="${cls}" src="${coverSrc(s)}" alt="" style="object-position:${s.owner?'38% 35%':'center'}" onerror="this.style.visibility='hidden'"/>`}
+let state={area:'Strand',sel:null,detail:null,view:'customer',dtab:'about',draft:{},mainIdx:0,page:null,pid:null,ad:null,cl:null,justAdded:false,claimDone:false};
 function initDraft(id){const s=spot(id);const sp=s&&s.owner?vend(id).special:null;state.draft={stitle:sp?sp.title:'',sdesc:sp?sp.desc:'',sprice:sp?sp.price:'',suntil:sp?sp.until:'',iname:'',iprice:''}}
 
 function layout(area){
@@ -193,7 +209,7 @@ function layout(area){
 function mapSVG(L){
   const {list,W,H,sc}=L;
   const A=list[0],Z=list[list.length-1];
-  let dx=Z.x-A.x,dy=Z.y-A.y;const len=Math.hypot(dx,dy)||1;dx/=len;dy/=len;
+  let dx=Z.x-A.x,dy=Z.y-A.y;let len=Math.hypot(dx,dy);if(len<5){dx=0.5;dy=0.866;len=1}dx/=len;dy/=len;
   let nx=-dy,ny=dx;if(nx>0){nx=-nx;ny=-ny}
   let far=0;list.forEach(s=>{const d=(s.x-A.x)*nx+(s.y-A.y)*ny;if(d>far)far=d});
   const off=Math.max(22,far+18),ext=400;
@@ -207,7 +223,7 @@ function mapSVG(L){
   s+=`<g transform="translate(${W-barPx-20},${H-18})"><line x1="0" y1="0" x2="${barPx}" y2="0" stroke="#1A1410" stroke-width="2"/><line x1="0" y1="-4" x2="0" y2="4" stroke="#1A1410" stroke-width="2"/><line x1="${barPx}" y1="-4" x2="${barPx}" y2="4" stroke="#1A1410" stroke-width="2"/><text x="0" y="-8" font-size="11" fill="#7A6F65">${bar} m</text></g>`;
   list.forEach(p=>{if(Math.hypot(p.dx-p.x,p.dy-p.y)>4)s+=`<line x1="${p.x}" y1="${p.y}" x2="${p.dx}" y2="${p.dy}" stroke="#7A6F65" stroke-width="1"/>`;s+=`<circle cx="${p.x}" cy="${p.y}" r="2.5" fill="#1A1410"/>`});
   list.forEach(p=>{const on=state.sel===p.id,st=status(p.id);
-    s+=`<g data-pin="${p.id}" style="cursor:pointer"><circle cx="${p.dx}" cy="${p.dy}" r="${on?15:12}" fill="${colour(p.type)}" stroke="${on?'#1A1410':'#fff'}" stroke-width="${on?3:2}"/><text x="${p.dx}" y="${p.dy+4}" text-anchor="middle" font-size="12" font-weight="500" fill="#fff" style="pointer-events:none">${p.n}</text>${st?`<circle cx="${p.dx+11}" cy="${p.dy-11}" r="6" fill="${st==='open'?'#1D9E75':'#A32D2D'}" stroke="#fff" stroke-width="1.8" style="pointer-events:none"/>`:''}</g>`});
+    s+=`<g data-pin="${p.id}" style="cursor:pointer">${p.user?`<circle cx="${p.dx}" cy="${p.dy}" r="${on?20:17}" fill="none" stroke="#1A1410" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}<circle cx="${p.dx}" cy="${p.dy}" r="${on?15:12}" fill="${colour(p.type)}" stroke="${on?'#1A1410':'#fff'}" stroke-width="${on?3:2}"/><text x="${p.dx}" y="${p.dy+4}" text-anchor="middle" font-size="12" font-weight="500" fill="#fff" style="pointer-events:none">${p.n}</text>${st?`<circle cx="${p.dx+11}" cy="${p.dy-11}" r="6" fill="${st==='open'?'#1D9E75':'#A32D2D'}" stroke="#fff" stroke-width="1.8" style="pointer-events:none"/>`:''}</g>`});
   if(state.sel){const p=list.find(q=>q.id===state.sel);if(p){const w=Math.min(p.name.length*6.4+16,230),lx=Math.min(Math.max(p.dx-w/2,6),W-w-6),ly=p.dy-34;
     s+=`<g style="pointer-events:none"><rect x="${lx}" y="${ly}" width="${w}" height="22" rx="6" fill="#1A1410"/><text x="${lx+w/2}" y="${ly+15}" text-anchor="middle" font-size="12" fill="#fff">${esc(p.name.length>34?p.name.slice(0,33)+'...':p.name)}</text></g>`}}
   return s+'</svg>';
@@ -220,24 +236,26 @@ function home(){
   const sel=state.sel&&L.list.find(s=>s.id===state.sel);
   let h=`<div class="top"><div class="wm">${logo()}Lekke<em>Bru</em></div><span style="font-size:12px;color:var(--muted)">${SPOTS.length} spots mapped</span></div>
   <div class="hero"><h1>Where's the lekker coffee,<br><em>bru?</em></h1><p>Tap a pin to see who's there, what's open and what's on today.</p></div>
-  <div class="tabs">${AREAS.map(a=>`<button class="tab${a===state.area?' on':''}" data-area="${esc(a)}">${esc(a)}</button>`).join('')}</div>
+  <div class="tabs">${areas().map(a=>`<button class="tab${a===state.area?' on':''}" data-area="${esc(a)}">${esc(a)}</button>`).join('')}</div>
   <div class="mapwrap">${mapSVG(L)}</div>
-  <div class="legend"><span><i style="background:#1D6B4B"></i>Fixed shop</span><span><i style="background:#BA7517"></i>Mobile trailer or kiosk</span></div>`;
+  <div class="legend"><span><i style="background:#1D6B4B"></i>Fixed shop</span><span><i style="background:#BA7517"></i>Mobile trailer or kiosk</span><span><i style="background:#fff;border:1.5px dashed #1A1410;box-sizing:border-box"></i>Added by a visitor</span></div>`;
   if(sel){const v=sel.owner?vend(sel.id):null;
-    const about=sel.owner?(v.about?esc(v.about):''):'The owner has not added details yet.';
-    h+=`<div class="prev2"><div style="display:flex;gap:12px;align-items:center">${img(sel,'thumb')}<div style="flex:1;min-width:0"><div class="pv-name">${sel.n}. ${esc(sel.name)}</div><div class="pv-sub"><span class="chip ${sel.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(sel.type)}</span>${statusChip(sel.id)}</div></div></div>${v&&v.special?`<div class="spec-strip"><b>Today</b> ${specialLine(v)}</div>`:''}${about?`<div class="blurb">${about}</div>`:''}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-open="${sel.id}">See details</button><button class="btn alt" data-rate="${sel.id}">Ratings</button></div></div>`;
+    const about=sel.owner?(v.about?esc(v.about):''):(sel.user?'Added by a visitor. The owner has not claimed it yet.':'The owner has not added details yet.');
+    h+=`<div class="prev2" id="pv"><div style="display:flex;gap:12px;align-items:center">${img(sel,'thumb')}<div style="flex:1;min-width:0"><div class="pv-name">${sel.n}. ${esc(sel.name)}</div><div class="pv-sub"><span class="chip ${sel.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(sel.type)}</span>${statusChip(sel.id)}</div></div></div>${v&&v.special?`<div class="spec-strip"><b>Today</b> ${specialLine(v)}</div>`:''}${about?`<div class="blurb">${about}</div>`:''}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-open="${sel.id}">See details</button><button class="btn alt" data-rate="${sel.id}">Ratings</button></div></div>`;
   }else h+=`<div class="prev">Tap a pin on the map or a name below.</div>`;
+  h+=`<div class="prev2" style="background:var(--green-l);border-color:#97C459"><div style="font-weight:500">Visited somewhere that is not on the map?</div><div class="blurb" style="margin-top:4px">Add it in a minute, then let them know they are on LekkeBru.</div><button class="btn" data-addspot="1">Add a cart or shop</button></div>`;
   h+=`<div class="prev2" style="background:var(--amber-l);border-color:#FAC775"><div style="font-weight:500">Owner test cart</div><div class="blurb" style="margin-top:4px">Narrie's Brew is a fictional cart. Open it to try what an owner can do: say you're open, post a special, upload a menu and photos.</div><button class="btn" data-owner="1">Open owner view</button></div>`;
   h+=`<div class="list"><h2>${esc(state.area)} spots, north to south</h2>`;
   L.list.forEach(s=>{
-    h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num" style="background:${colour(s.type)}">${s.n}</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span>${s.owner?'<span class="tag-test">test</span>':''}<br><span style="font-size:12px;color:var(--muted)">${typeLabel(s.type)}</span>${s.owner?' '+statusChip(s.id):''}</span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`});
-  h+=`</div><div class="foot">Ratings, notes and anything uploaded for the test cart are saved on this phone only for now. Tap below to copy the ratings so they can be added to the shared app.<br><button class="btn alt" data-export="1">Copy all my ratings</button><div id="exp"></div></div>`;
+    h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num" style="background:${colour(s.type)}">${s.n}</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span>${s.owner?'<span class="tag-test">test</span>':''}${s.user?'<span class="tag-test">visitor added</span>':''}<br><span style="font-size:12px;color:var(--muted)">${typeLabel(s.type)}</span>${s.owner?' '+statusChip(s.id):''}</span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`});
+  h+=`</div><div class="foot">Ratings, notes and anything uploaded for the test cart are saved on this phone only for now. Tap below to copy your ratings and added spots so they can be added to the shared app.<br><button class="btn alt" data-export="1">Copy my ratings and added spots</button><div id="exp"></div></div>`;
   return h;
 }
 
 function gallery(s){
   const v=s.owner?vend(s.id):null,imgs=v&&v.photos.length?v.photos:null;
-  const main=imgs?imgs[Math.min(state.mainIdx,imgs.length-1)]:`photos/${s.id}.jpg`;
+  const main=imgs?imgs[Math.min(state.mainIdx,imgs.length-1)]:coverSrc(s);
+  if(!imgs&&!hasPic(s))return `<div class="photo ph"><div style="transform:scale(1.8)">${logo()}</div><div style="margin-top:10px">No photo yet</div></div>`;
   let h=`<img class="photo" src="${main}" alt="" style="object-position:${s.owner?'50% 30%':'center'}" onerror="this.style.visibility='hidden'"/>`;
   if(imgs&&imgs.length>1)h+=`<div class="thumbs">${imgs.map((x,i)=>`<img class="th${i===state.mainIdx?' on':''}" src="${x}" data-main="${i}" alt=""/>`).join('')}</div>`;
   return h;
@@ -286,6 +304,8 @@ function ownerTools(s){
 
 function aboutTab(s,r,v){
   let h='';
+  if(s.imported)h+=`<div class="sp"><div class="eb">Welcome</div><div class="tt">Someone added ${esc(s.name)} to LekkeBru</div><div class="ds">Is this your place? Claim it for free to post your hours, specials and menu.</div><button class="btn" data-claim="${s.id}">Claim this spot</button></div>`;
+  if(s.note)h+=`<div class="sec"><h3>Note from the person who added it</h3><div style="font-size:14px;line-height:1.45">${esc(s.note)}</div></div>`;
   if(v&&v.about)h+=`<div class="sec"><h3>From the owner</h3><div style="font-size:15px;line-height:1.5">${esc(v.about)}</div></div>`;
   if(v&&v.special)h+=`<div class="sp"><div class="eb">Today's special</div><div class="tt">${esc(v.special.title)}</div>${v.special.desc?`<div class="ds">${esc(v.special.desc)}</div>`:''}<div class="un">${v.special.price?esc(v.special.price):''}${v.special.price&&v.special.until?' · ':''}${v.special.until?'Until '+esc(v.special.until):''}</div></div>`;
   h+=`<a class="dir" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" rel="noopener">Get directions</a>`;
@@ -301,17 +321,18 @@ function aboutTab(s,r,v){
     <label>Typical price for a flat white</label><input class="in" data-field="price" value="${esc(r.price)}" placeholder="R__"/></div>`;
   }
   h+=`<div class="sec"><h3>Opening hours</h3><div style="font-size:14px;color:var(--muted)">Not added yet.</div></div>`;
+  if(!s.owner)h+=`<div class="sec"><h3>Is this your place?</h3><div style="font-size:14px;color:var(--muted);line-height:1.4">Owners claim their spot for free to add hours, specials, a menu and photos.</div><button class="btn" data-claim="${s.id}">Claim this spot</button> <button class="btn alt" data-notify="${s.id}">Tell them they are on LekkeBru</button></div>`;
   h+=`<div class="note">Want to know how others rate it? Open the Ratings tab.</div><div style="height:40px"></div>`;
   return h;
 }
 function ratingsTab(s,r){
-  const o=overall(s.id);
-  let h=`<div class="sec"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h3 style="margin:0">LekkeScore</h3><div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4">Demo scores for now. They are placeholders until real ratings come in, and any rating you set replaces the demo one.</div></div><div class="big" id="ov">${o}</div></div></div>
+  const o=overall(s.id),hasDemo=!!DEMO[s.id];
+  let h=`<div class="sec"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h3 style="margin:0">LekkeScore</h3><div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4">${hasDemo?'Demo scores for now. They are placeholders until real ratings come in, and any rating you set replaces the demo one.':'No ratings yet. Be the first to rate this spot.'}</div></div><div class="big" id="ov">${o||'-'}</div></div></div>
   <div class="sec"><h3>Rate this spot, out of 10</h3>`;
-  CATS.forEach(([k,lbl])=>{const u=r.scores[k],has=typeof u==='number',val=eff(s.id,k);
-    h+=`<div class="rate"><div class="rate-top"><span>${lbl}</span><span><span class="rate-val" id="v-${k}">${f1(val)}</span><span class="demo-tag" id="d-${k}"${has?' hidden':''}>demo</span></span></div><input type="range" min="0" max="10" step="0.5" value="${val}" data-cat="${k}"/><button class="clr" id="c-${k}" data-clear="${k}"${has?'':' hidden'}>Reset to demo</button></div>`});
+  CATS.forEach(([k,lbl])=>{const u=r.scores[k],has=typeof u==='number',val=eff(s.id,k),none=val==null;
+    h+=`<div class="rate"><div class="rate-top"><span>${lbl}</span><span><span class="rate-val" id="v-${k}"${none?' style="color:var(--muted);font-weight:400;font-size:13px;font-family:DM Sans,sans-serif"':''}>${none?'Not rated':f1(val)}</span><span class="demo-tag" id="d-${k}"${(has||none)?' hidden':''}>demo</span></span></div><input type="range" min="0" max="10" step="0.5" value="${none?5:val}" data-cat="${k}"/><button class="clr" id="c-${k}" data-clear="${k}"${has?'':' hidden'}>${hasDemo?'Reset to demo':'Clear my rating'}</button></div>`});
   h+=`</div><div class="sec"><h3>Your notes</h3><textarea class="in" data-field="notes" placeholder="What stood out? Best seat, best time, what to order">${esc(r.notes)}</textarea></div>
-  <div class="note">Saved on this phone only for now.</div><div class="foot"><button class="btn alt" data-export="1">Copy all my ratings</button><div id="exp"></div></div>`;
+  <div class="note">Saved on this phone only for now.</div><div class="foot"><button class="btn alt" data-export="1">Copy my ratings and added spots</button><div id="exp"></div></div>`;
   return h;
 }
 function detail(){
@@ -319,15 +340,135 @@ function detail(){
   let h=`<div class="top"><button class="back" data-back="1">&larr; Back to map</button><div class="wm">${logo()}Lekke<em>Bru</em></div></div>`;
   if(s.owner)h+=`<div class="seg"><button class="${owner?'on':''}" data-view="owner">Owner view</button><button class="${owner?'':'on'}" data-view="customer">Customer view</button></div>`;
   h+=gallery(s);
-  h+=`<div class="ident"><h1>${esc(s.name)}${s.owner?'<span class="tag-test">test cart</span>':''}</h1><div style="margin-top:8px"><span class="chip ${s.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(s.type)}</span>${statusChip(s.id)}<span style="font-size:12px;color:var(--muted)">${esc(s.area)}</span></div></div>`;
+  h+=`<div class="ident"><h1>${esc(s.name)}${s.owner?'<span class="tag-test">test cart</span>':''}${s.user?'<span class="tag-test">visitor added</span>':''}</h1><div style="margin-top:8px"><span class="chip ${s.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(s.type)}</span>${statusChip(s.id)}<span style="font-size:12px;color:var(--muted)">${esc(s.area)}</span></div></div>`;
   if(owner)return h+ownerTools(s);
   h+=`<div class="seg"><button class="${state.dtab==='about'?'on':''}" data-tab="about">About</button><button class="${state.dtab==='ratings'?'on':''}" data-tab="ratings">Ratings</button></div>`;
   return h+(state.dtab==='ratings'?ratingsTab(s,r):aboutTab(s,r,v));
 }
 
+
+function dist(la1,lo1,la2,lo2){const R=6371000,t=x=>x*Math.PI/180,a=Math.sin(t(la2-la1)/2)**2+Math.cos(t(la1))*Math.cos(t(la2))*Math.sin(t(lo2-lo1)/2)**2;return 2*R*Math.asin(Math.sqrt(a))}
+function nearby(lat,lng,name){const n=name.trim().toLowerCase();return SPOTS.filter(x=>dist(x.lat,x.lng,lat,lng)<60||x.name.toLowerCase()===n).map(x=>x.name)}
+function parseLoc(str){const m=String(str).match(/(-?\d{1,2}\.\d{3,})\s*[,;\s]\s*(-?\d{1,3}\.\d{3,})/);if(!m)return null;const la=+m[1],lo=+m[2];if(la<-35.5||la>-22||lo<16||lo>33.5){toast('That does not look like a South African location');return null}return [la,lo]}
+function spotLink(s){return location.origin+location.pathname+'#s='+[s.name.replace(/~/g,'-'),s.type==='mobile'?'m':'f',s.area.replace(/~/g,'-'),s.lat.toFixed(5),s.lng.toFixed(5)].map(encodeURIComponent).join('~')}
+function notifyMsg(s){return `Hi! I just added "${s.name}" to LekkeBru, a new app for finding great beachfront coffee around Strand and Gordon's Bay. You are on the map. Claim your listing for free to post your hours, today's specials and your menu: ${spotLink(s)}`}
+function waNum(c){if(!c||c.kind!=='whatsapp')return '';let d=String(c.val||'').replace(/\D/g,'');if(d.startsWith('0'))d='27'+d.slice(1);return d.length>=10?d:''}
+function igHandle(c){if(!c||c.kind!=='instagram')return '';return String(c.val||'').replace(/^.*instagram\.com\//,'').replace(/[@\/\s?].*$/,'').replace(/[^A-Za-z0-9._]/g,'')}
+function copyText(txt,done){const fb=()=>{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();try{document.execCommand('copy');done&&done()}catch(e){toast('Could not copy')}t.remove()};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>done&&done()).catch(fb)}else fb()}
+function newDraft(){return {name:'',type:'fixed',area:state.area||'Strand',areaOther:'',lat:null,lng:null,locText:'',photo:null,ckind:'whatsapp',cval:'',note:'',dup:null,confirmDup:false}}
+function topBar(label){return `<div class="top"><button class="back" data-back="1">&larr; ${label}</button><div class="wm">${logo()}Lekke<em>Bru</em></div></div>`}
+function addView(){
+  const a=state.ad;
+  const opts=[...new Set(areas().concat(['Somerset West','Sea Point','Green Point','Mouille Point']))];
+  let h=topBar('Cancel')+`<div class="hero"><h1>Add a cart<br><em>or shop</em></h1><p>Visited somewhere lekker that is not on the map? Add it in a minute.</p></div>`;
+  if(a.dup&&a.dup.length)h+=`<div class="sp"><div class="eb">Possible duplicate</div><div class="ds" style="margin:6px 0">Already on the map nearby: <b>${a.dup.map(esc).join(', ')}</b>. Is it the same place?</div><button class="btn" data-adddup="1">It is different, add anyway</button> <button class="btn alt" data-back="1">Cancel</button></div>`;
+  h+=`<div class="sec"><h3>The place</h3>
+    <label style="margin-top:0">Name</label><input class="in" data-af="name" value="${esc(a.name)}" placeholder="e.g. Sunrise Coffee Cart"/>
+    <label>What is it?</label><div class="roasts"><button class="rb${a.type==='fixed'?' on':''}" data-atype="fixed">Shop or cafe</button><button class="rb${a.type==='mobile'?' on':''}" data-atype="mobile">Cart, trailer or kiosk</button></div>
+    <label>Area</label><select class="in" data-asel="area">${opts.map(o=>`<option value="${esc(o)}"${a.area===o?' selected':''}>${esc(o)}</option>`).join('')}<option value="__other"${a.area==='__other'?' selected':''}>Somewhere else</option></select>
+    ${a.area==='__other'?`<input class="in" style="margin-top:8px" data-af="areaOther" value="${esc(a.areaOther)}" placeholder="Type the area"/>`:''}
+  </div>
+  <div class="sec"><h3>Where is it?</h3>
+    <button class="btn" style="margin-top:0" data-gps="1">Use my current location</button>
+    <label>Or paste a Google Maps link or coordinates</label><input class="in" data-af="locText" value="${esc(a.locText)}" placeholder="https://maps.google.com/?q=-34.11,18.82"/>
+    ${a.lat!=null?`<div class="ok">Location set: ${a.lat.toFixed(5)}, ${a.lng.toFixed(5)}</div>`:'<div style="font-size:12px;color:var(--muted);margin-top:6px">Easiest while you are standing at the spot.</div>'}
+  </div>
+  <div class="sec"><h3>Photo</h3>
+    ${a.photo?`<div class="tiles"><div class="tile"><img src="${a.photo}" alt="Photo"/><button class="x" data-rmaddphoto="1" aria-label="Remove photo">x</button></div></div>`:'<div style="font-size:13px;color:var(--muted)">A photo of the cart or shopfront helps people find it.</div>'}
+    <label class="file">${a.photo?'Change photo':'Add a photo'}<input type="file" accept="image/*" data-upload="addphoto"/></label>
+  </div>
+  <div class="sec"><h3>How can we reach them? (optional)</h3>
+    <div style="font-size:13px;color:var(--muted);line-height:1.4">Only used to tell them they have been added. Never shown to the public.</div>
+    <div class="roasts" style="margin-top:10px"><button class="rb${a.ckind==='whatsapp'?' on':''}" data-ckind="whatsapp">WhatsApp</button><button class="rb${a.ckind==='email'?' on':''}" data-ckind="email">Email</button><button class="rb${a.ckind==='instagram'?' on':''}" data-ckind="instagram">Instagram</button></div>
+    <input class="in" data-af="cval" value="${esc(a.cval)}" placeholder="${a.ckind==='whatsapp'?'082 123 4567':a.ckind==='email'?'name@example.com':'@theirhandle'}"/>
+  </div>
+  <div class="sec"><h3>Anything we should know? (optional)</h3><textarea class="in" data-af="note" placeholder="What you had, when you saw them open, where exactly they park">${esc(a.note)}</textarea></div>
+  <div style="padding:16px 20px 40px"><button class="btn full" data-submitadd="1">Add to LekkeBru</button></div>`;
+  return h;
+}
+function notifyPanel(s){
+  const msg=notifyMsg(s),enc=encodeURIComponent(msg),c=cts[s.id]||{kind:'whatsapp',val:''};
+  const wa=waNum(c),ig=igHandle(c);
+  let main;
+  if(wa)main=`<a class="btn" href="https://wa.me/${wa}?text=${enc}" target="_blank" rel="noopener">Send on WhatsApp</a>`;
+  else if(c.kind==='email'&&/.+@.+\..+/.test(c.val||''))main=`<a class="btn" href="mailto:${esc(c.val)}?subject=${encodeURIComponent('You are on LekkeBru')}&body=${enc}">Send by email</a>`;
+  else if(ig)main=`<a class="btn" href="https://instagram.com/${ig}" target="_blank" rel="noopener">Open @${esc(ig)} on Instagram</a>`;
+  else main=`<a class="btn" href="https://wa.me/?text=${enc}" target="_blank" rel="noopener">Pick a contact on WhatsApp</a>`;
+  return `<div class="sec"><h3>Let ${esc(s.name)} know</h3>
+    <div style="font-size:14px;color:var(--muted);line-height:1.45">Send them this message. It tells them they are on the map and gives them a link to claim the listing for free.</div>
+    <div class="msgbox">${esc(msg)}</div>
+    ${main} <button class="btn alt" data-share="${s.id}">Share...</button> <button class="btn alt" data-copymsg="${s.id}">Copy message</button>
+    ${ig?'<div class="ok" style="color:var(--muted)">Instagram cannot pre-fill a message, so open their profile, then paste the copied message into a DM.</div>':''}
+  </div>
+  <div class="sec"><h3>Their contact (private)</h3>
+    <div class="roasts"><button class="rb${c.kind==='whatsapp'?' on':''}" data-nkind="whatsapp">WhatsApp</button><button class="rb${c.kind==='email'?' on':''}" data-nkind="email">Email</button><button class="rb${c.kind==='instagram'?' on':''}" data-nkind="instagram">Instagram</button></div>
+    <input class="in" data-nval="1" value="${esc(c.val)}" placeholder="${c.kind==='whatsapp'?'082 123 4567':c.kind==='email'?'name@example.com':'@theirhandle'}"/>
+    <button class="btn alt" data-nsave="1">Save contact</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4">Saved on this phone only. Never shown to the public.</div>
+  </div>`;
+}
+function notifyView(){
+  const s=spot(state.pid);
+  let h=topBar(state.justAdded?'Back to map':'Back');
+  h+=state.justAdded?`<div class="hero"><h1>Added.<br><em>Thanks, bru.</em></h1><p>${esc(s.name)} is on your map. Now let them know.</p></div>`:`<div class="hero"><h1>Let them<br><em>know</em></h1><p>Tell ${esc(s.name)} they are on LekkeBru.</p></div>`;
+  h+=`<div class="prev2" style="display:flex;gap:12px;align-items:center">${img(s,'thumb')}<div><div class="pv-name">${esc(s.name)}</div><div class="pv-sub">${typeLabel(s.type)} &middot; ${esc(s.area)}</div></div></div>`;
+  h+=notifyPanel(s);
+  h+=`<div style="padding:16px 20px 40px"><button class="btn full" data-seeadded="${s.id}">See it on the map</button></div>`;
+  return h;
+}
+function claimView(){
+  const s=spot(state.pid),c=state.cl;
+  let h=topBar('Back');
+  if(state.claimDone){
+    return h+`<div class="hero"><h1>Claim request<br><em>saved</em></h1><p>We will check it is really you before you get access.</p></div>
+    <div class="sec"><h3>What happens next</h3><div style="font-size:14px;line-height:1.5;color:var(--muted)">Once LekkeBru is live, claims reach one inbox and we verify each owner before they can edit. Until then, your request is saved on this phone.</div></div>
+    <div class="sec"><h3>See what owners can do</h3><div style="font-size:14px;line-height:1.5;color:var(--muted)">Say you are open, post specials, upload a menu and choose your cover photo. Try it on the test cart.</div><button class="btn" data-owner="1">Try the owner tools</button></div>
+    <div style="padding:16px 20px 40px"><button class="btn alt full" data-back="1">Done</button></div>`;
+  }
+  h+=`<div class="hero"><h1>Claim<br><em>${esc(s.name)}</em></h1><p>Owners and managers can claim a spot for free.</p></div>
+  <div class="sec"><h3>About you</h3>
+    <label style="margin-top:0">Your name</label><input class="in" data-cf="name" value="${esc(c.name)}" placeholder="Your name"/>
+    <label>Your role</label><div class="roasts">${['Owner','Manager','Staff'].map(r=>`<button class="rb${c.role===r?' on':''}" data-crole="${r}">${r}</button>`).join('')}</div>
+    <label>WhatsApp number or email</label><input class="in" data-cf="contact" value="${esc(c.contact)}" placeholder="082 123 4567 or name@example.com"/>
+  </div>
+  <div style="padding:16px 20px 40px"><button class="btn full" data-submitclaim="1">Send claim request</button></div>`;
+  return h;
+}
+function importFromHash(){
+  const m=location.hash.match(/^#s=([^&\s]+)$/);if(!m)return;
+  try{
+    const parts=m[1].split('~').map(decodeURIComponent);if(parts.length!==5)return;
+    const name=String(parts[0]).trim().slice(0,60),area=String(parts[2]).trim().slice(0,30),type=parts[1]==='m'?'mobile':'fixed',lat=+parts[3],lng=+parts[4];
+    if(!name||!area||!isFinite(lat)||!isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return;
+    let sp=SPOTS.find(x=>x.name.toLowerCase()===name.toLowerCase()&&dist(x.lat,x.lng,lat,lng)<150);
+    if(!sp){sp={id:'u-'+Date.now().toString(36),name,type,area,lat,lng,user:true,imported:true,addedAt:Date.now()};SPOTS.push(sp);saveSpots()}
+    state.area=sp.area;state.detail=sp.id;state.view='customer';state.dtab='about';state.mainIdx=0;
+  }catch(e){}
+  try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+}
+function submitAdd(){
+  const a=state.ad,name=a.name.trim();
+  if(!name){toast('Add a name first');return}
+  const area=a.area==='__other'?a.areaOther.trim():a.area;
+  if(!area){toast('Choose or type an area');return}
+  if(a.lat==null){toast('Set the location first');return}
+  if(!a.confirmDup){const dups=nearby(a.lat,a.lng,name);if(dups.length){a.dup=dups;render();window.scrollTo(0,0);return}}
+  const sp={id:'u-'+Date.now().toString(36),name:name.slice(0,60),type:a.type,area:area.slice(0,30),lat:a.lat,lng:a.lng,user:true,addedAt:Date.now(),note:a.note.trim().slice(0,300)};
+  if(a.photo)sp.photo=a.photo;
+  SPOTS.push(sp);
+  if(!saveSpots()){SPOTS.pop();toast('Phone storage is full. Remove the photo and try again.');return}
+  if(a.cval.trim()){cts[sp.id]={kind:a.ckind,val:a.cval.trim()};saveCts()}
+  state.area=sp.area;state.sel=sp.id;state.page='notify';state.pid=sp.id;state.justAdded=true;window.scrollTo(0,0);render();
+}
+function useGPS(){
+  if(!navigator.geolocation){toast('Location is not available on this device');return}
+  toast('Finding you...');
+  navigator.geolocation.getCurrentPosition(p=>{state.ad.lat=p.coords.latitude;state.ad.lng=p.coords.longitude;state.ad.locText='';render()},()=>toast('Could not get your location. Paste a Google Maps link instead.'),{enableHighAccuracy:true,timeout:12000});
+}
+
 function render(){
   const y=window.scrollY;
-  document.getElementById('app').innerHTML=state.detail?detail():home();
+  document.getElementById('app').innerHTML=state.page==='add'?addView():state.page==='notify'?notifyView():state.page==='claim'?claimView():state.detail?detail():home();
   window.scrollTo(0,y);
 }
 function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2400)}
@@ -338,18 +479,40 @@ function exportAll(){
     ['roast','roaster','price','notes'].forEach(k=>{if(r[k])o[k]=r[k]});
     if(r.vendor){const v=r.vendor;o.vendor={open:v.open,special:v.special,about:v.about,roast:v.roast,beans:v.beans,flat:v.flat,menu:v.menu,photoCount:v.photos.length,menuPhotoCount:v.menuPhotos.length}}
     if(Object.keys(o).length)out[id]=o});
-  const txt=JSON.stringify(out,null,2);
+  const full={};
+  if(Object.keys(out).length)full.ratings=out;
+  const added=SPOTS.filter(x=>x.user).map(x=>({name:x.name,type:x.type,area:x.area,lat:x.lat,lng:x.lng,note:x.note||'',hasPhoto:!!x.photo,imported:!!x.imported}));
+  if(added.length)full.addedSpots=added;
+  if(Object.keys(cts).length)full.contacts=cts;
+  if(claims.length)full.claims=claims;
+  const txt=JSON.stringify(full,null,2);
   const fallback=()=>{const e=document.getElementById('exp');if(e)e.innerHTML=`<textarea class="in" rows="8" style="margin-top:10px" readonly>${esc(txt)}</textarea>`;const t=e&&e.querySelector('textarea');if(t){t.focus();t.select()}};
-  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>toast('Ratings copied')).catch(fallback)}else fallback();
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>toast('Copied')).catch(fallback)}else fallback();
 }
 function shrink(file,max,q){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',q))};im.onerror=rej;im.src=fr.result};fr.onerror=rej;fr.readAsDataURL(file)})}
 function openDetail(id,view,tab){state.detail=id;state.view=view||'customer';state.dtab=tab||'about';state.mainIdx=0;initDraft(id);window.scrollTo(0,0);render()}
 
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export],[data-setopen],[data-pub],[data-rmspecial],[data-additem],[data-delitem],[data-delphoto],[data-delmenu],[data-reset],[data-view],[data-main],[data-owner],[data-rate],[data-tab],[data-cover],[data-vroast]');
+  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export],[data-setopen],[data-pub],[data-rmspecial],[data-additem],[data-delitem],[data-delphoto],[data-delmenu],[data-reset],[data-view],[data-main],[data-owner],[data-rate],[data-tab],[data-cover],[data-vroast],[data-addspot],[data-atype],[data-gps],[data-adddup],[data-submitadd],[data-seeadded],[data-notify],[data-claim],[data-crole],[data-submitclaim],[data-nkind],[data-nsave],[data-copymsg],[data-share],[data-ckind],[data-rmaddphoto]');
   if(!t)return;
   const d=t.dataset,id=state.detail;
-  if(d.pin||d.pick){const p=d.pin||d.pick;state.sel=state.sel===p?null:p;render();const c=document.querySelector('.prev2');if(c)c.scrollIntoView({behavior:'smooth',block:'nearest'})}
+  if(d.pin||d.pick){const p=d.pin||d.pick;state.sel=state.sel===p?null:p;render();const c=document.getElementById('pv');if(c)c.scrollIntoView({behavior:'smooth',block:'nearest'})}
+  else if(d.addspot!==undefined){state.ad=newDraft();state.page='add';window.scrollTo(0,0);render()}
+  else if(d.atype){state.ad.type=d.atype;render()}
+  else if(d.ckind){state.ad.ckind=d.ckind;render()}
+  else if(d.gps!==undefined)useGPS();
+  else if(d.adddup!==undefined){state.ad.confirmDup=true;state.ad.dup=null;submitAdd()}
+  else if(d.submitadd!==undefined)submitAdd();
+  else if(d.rmaddphoto!==undefined){state.ad.photo=null;render()}
+  else if(d.seeadded){const sp=spot(d.seeadded);state.page=null;state.justAdded=false;state.detail=null;state.area=sp.area;state.sel=sp.id;render();const c=document.getElementById('pv');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})}
+  else if(d.notify){state.pid=d.notify;state.justAdded=false;state.page='notify';window.scrollTo(0,0);render()}
+  else if(d.claim){state.pid=d.claim;state.cl={name:'',role:'Owner',contact:''};state.claimDone=false;state.page='claim';window.scrollTo(0,0);render()}
+  else if(d.crole){state.cl.role=d.crole;render()}
+  else if(d.submitclaim!==undefined){const c=state.cl;if(!c.name.trim()||!c.contact.trim()){toast('Add your name and a contact');return}const sp=spot(state.pid);claims.push({spotId:sp.id,spot:sp.name,name:c.name.trim(),role:c.role,contact:c.contact.trim(),at:Date.now()});saveClaims();state.claimDone=true;render();window.scrollTo(0,0)}
+  else if(d.nkind){cts[state.pid]=cts[state.pid]||{kind:d.nkind,val:''};cts[state.pid].kind=d.nkind;saveCts();render()}
+  else if(d.nsave!==undefined){saveCts();render();toast('Contact saved')}
+  else if(d.copymsg){copyText(notifyMsg(spot(d.copymsg)),()=>toast('Message copied'))}
+  else if(d.share){const sp=spot(d.share),msg=notifyMsg(sp);if(navigator.share){navigator.share({title:'LekkeBru',text:msg}).catch(()=>{})}else copyText(msg,()=>toast('Message copied'))}
   else if(d.open){openDetail(d.open,'customer','about')}
   else if(d.rate){openDetail(d.rate,'customer','ratings')}
   else if(d.tab){state.dtab=d.tab;render()}
@@ -357,7 +520,7 @@ document.addEventListener('click',e=>{
   else if(d.vroast){const v=vend(id);v.roast=v.roast===d.vroast?'':d.vroast;save();render()}
   else if(d.owner!==undefined){state.area='Strand';openDetail('narries-brew','owner','about')}
   else if(d.area){state.area=d.area;state.sel=null;render()}
-  else if(d.back!==undefined){state.detail=null;window.scrollTo(0,0);render()}
+  else if(d.back!==undefined){if(state.page){state.page=null;state.justAdded=false;state.claimDone=false;window.scrollTo(0,0);render()}else{state.detail=null;window.scrollTo(0,0);render()}}
   else if(d.view){state.view=d.view;render()}
   else if(d.main!==undefined){state.mainIdx=parseInt(d.main,10);render()}
   else if(d.roast){const r=rec(id);r.roast=r.roast===d.roast?'':d.roast;save();render()}
@@ -374,13 +537,19 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('input',e=>{
   const t=e.target,c=t.dataset.cat;
-  if(c){const r=rec(state.detail);r.scores[c]=parseFloat(t.value);save();document.getElementById('v-'+c).textContent=f1(r.scores[c]);document.getElementById('d-'+c).hidden=true;document.getElementById('c-'+c).hidden=false;const o=overall(state.detail);document.getElementById('ov').textContent=o||'-'}
+  if(c){const r=rec(state.detail);r.scores[c]=parseFloat(t.value);save();{const ve=document.getElementById('v-'+c);ve.textContent=f1(r.scores[c]);ve.removeAttribute('style')}document.getElementById('d-'+c).hidden=true;document.getElementById('c-'+c).hidden=false;const o=overall(state.detail);document.getElementById('ov').textContent=o||'-'}
   if(t.dataset.field){rec(state.detail)[t.dataset.field]=t.value;save()}
   if(t.dataset.draft)state.draft[t.dataset.draft]=t.value;
+  if(t.dataset.af&&state.ad)state.ad[t.dataset.af]=t.value;
+  if(t.dataset.cf&&state.cl)state.cl[t.dataset.cf]=t.value;
+  if(t.dataset.nval!==undefined){const k=state.pid;cts[k]=cts[k]||{kind:'whatsapp',val:''};cts[k].val=t.value;saveCts()}
   if(t.dataset.vfield){vend(state.detail)[t.dataset.vfield]=t.value;save()}
 });
 document.addEventListener('change',async e=>{
   const t=e.target;
+  if(t.dataset.asel==='area'){state.ad.area=t.value;render();return}
+  if(t.dataset.af==='locText'){const pl=parseLoc(t.value);if(pl){state.ad.lat=pl[0];state.ad.lng=pl[1];render()}else if(t.value.trim())toast('Could not find coordinates in that');return}
+  if(t.type==='file'&&t.dataset.upload==='addphoto'){const f=t.files[0];if(f){try{state.ad.photo=await shrink(f,900,0.72);render()}catch(err){toast('Could not read that image')}}return}
   if(t.type!=='file'||!t.dataset.upload)return;
   const v=vend(state.detail),menu=t.dataset.upload==='menu',list=menu?v.menuPhotos:v.photos,limit=menu?4:8;
   let added=0;
@@ -392,6 +561,7 @@ document.addEventListener('change',async e=>{
   else if(added)toast(added+' photo'+(added>1?'s':'')+' added');
   t.value='';render();
 });
+importFromHash();
 render();
 </script>
 </body>

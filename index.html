@@ -123,6 +123,11 @@ select.in{appearance:auto}
 const SPOTS=[
 {id:'on-the-go',name:'On the Go (name to confirm)',type:'fixed',area:"Gordon's Bay",lat:-34.157703,lng:18.868187},
 {id:'bootlegger',name:'Bootlegger',type:'fixed',area:"Gordon's Bay",lat:-34.156887,lng:18.867874},
+{id:'bean-and-barrel',name:'Bean and Barrel',type:'fixed',area:"Gordon's Bay",lat:-34.160519,lng:18.868179},
+{id:'curbside-coffee',name:'Curbside Coffee',type:'mobile',area:"Gordon's Bay",lat:-34.168983,lng:18.850061},
+{id:'atma-villa',name:'Atma Villa',type:'mobile',area:'Clarence Drive',lat:-34.175018,lng:18.834579,note:'Roasts its own coffee, serves cold press, and runs out of a 1975 combi.',pics:['photos/atma-villa.jpg','photos/atma-villa-2.jpg','photos/atma-villa-3.jpg']},
+{id:'pitstop',name:'Pitstop',type:'fixed',area:'Clarence Drive',lat:-34.191711,lng:18.819958,pics:['photos/pitstop.jpg','photos/pitstop-2.jpg']},
+{id:'osteria',name:'Osteria',type:'fixed',area:'Somerset West',lat:-34.108017,lng:18.881445,pics:['photos/osteria.jpg','photos/osteria-2.jpg']},
 {id:'unnamed-cafe-parking',name:'Unnamed cafe (name needed)',type:'fixed',area:'Strand',lat:-34.119392,lng:18.829510},
 {id:'merkava-coffee',name:'Merkava Coffee',type:'fixed',area:'Strand',lat:-34.117317,lng:18.827194},
 {id:'plato-coffee',name:'Plato Coffee',type:'fixed',area:'Strand',lat:-34.117477,lng:18.827805},
@@ -159,7 +164,8 @@ const DEMO={
 'boutique-roastery':{coffee:9.0,view:8.0,social:8.5,value:8.5,service:8.5,food:8.5,comfort:8.0,reliability:9.0}
 };
 function blurb(s){return s.owner?'A fictional test cart. Nothing here is real, it exists so owner tools can be tried out.':s.type==='fixed'?'Good coffee, friendly people and a lekker beachfront setting.':'A friendly pop-up with real beachfront character and a coffee worth stopping for.'}
-const SEED_AREAS=['Strand',"Gordon's Bay"];
+const SEED_AREAS=['Strand',"Gordon's Bay",'Clarence Drive','Somerset West'];
+const COASTAL=['Strand',"Gordon's Bay",'Clarence Drive','Sea Point','Green Point','Mouille Point'];
 function areas(){return SEED_AREAS.concat([...new Set(SPOTS.map(s=>s.area))].filter(a=>!SEED_AREAS.includes(a)))}
 const KEY='lekkebru:v1';
 let db={};
@@ -186,7 +192,7 @@ function typeLabel(t){return t==='fixed'?'Fixed shop':'Mobile trailer or kiosk'}
 function hhmm(ts){return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
 function status(id){const s=spot(id);if(!s||!s.owner)return null;return vend(id).open?'open':'closed'}
 function statusChip(id){const st=status(id);return st?`<span class="chip ${st==='open'?'c-open':'c-closed'}">${st==='open'?'Open now':'Closed'}</span>`:''}
-function coverSrc(s){if(s.photo)return s.photo;if(s.owner){const v=vend(s.id);if(v.photos.length)return v.photos[0]}return `photos/${s.id}.jpg`}
+function coverSrc(s){if(s.photo)return s.photo;if(s.pics&&s.pics.length&&!s.owner)return s.pics[0];if(s.owner){const v=vend(s.id);if(v.photos.length)return v.photos[0]}return `photos/${s.id}.jpg`}
 function hasPic(s){return !!(s.photo||s.owner||!s.user)}
 function img(s,cls){if(!hasPic(s))return `<div class="${cls} ph">${logo()}</div>`;return `<img class="${cls}" src="${coverSrc(s)}" alt="" style="object-position:${s.owner?'38% 35%':'center'}" onerror="this.style.visibility='hidden'"/>`}
 let state={area:'Strand',sel:null,detail:null,view:'customer',dtab:'about',draft:{},mainIdx:0,page:null,pid:null,ad:null,cl:null,justAdded:false,claimDone:false};
@@ -215,10 +221,13 @@ function mapSVG(L){
   const off=Math.max(22,far+18),ext=400;
   const E1=[A.x-dx*ext+nx*off,A.y-dy*ext+ny*off],E2=[Z.x+dx*ext+nx*off,Z.y+dy*ext+ny*off];
   const bar=sc>0.4?100:500,barPx=bar*sc;
+  const coastal=COASTAL.includes(state.area);
   let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of ${esc(state.area)} coffee spots"><rect width="${W}" height="${H}" fill="#FAF7F0"/>`;
-  s+=`<polygon points="${E1[0]},${E1[1]} ${E2[0]},${E2[1]} -30,${H+120} -30,-120" fill="#DCEBF7"/>`;
-  s+=`<line x1="${E1[0]}" y1="${E1[1]}" x2="${E2[0]}" y2="${E2[1]}" stroke="#F1E3C6" stroke-width="8"/>`;
-  s+=`<text x="26" y="${H/2}" font-size="12" fill="#378ADD" letter-spacing="3" text-anchor="middle" transform="rotate(-90 26 ${H/2})">FALSE BAY</text>`;
+  if(coastal){
+    s+=`<polygon points="${E1[0]},${E1[1]} ${E2[0]},${E2[1]} -30,${H+120} -30,-120" fill="#DCEBF7"/>`;
+    s+=`<line x1="${E1[0]}" y1="${E1[1]}" x2="${E2[0]}" y2="${E2[1]}" stroke="#F1E3C6" stroke-width="8"/>`;
+    s+=`<text x="26" y="${H/2}" font-size="12" fill="#378ADD" letter-spacing="3" text-anchor="middle" transform="rotate(-90 26 ${H/2})">FALSE BAY</text>`;
+  }
   s+=`<g transform="translate(348,34)"><line x1="0" y1="14" x2="0" y2="-6" stroke="#1A1410" stroke-width="1.5"/><polygon points="0,-12 -5,-3 5,-3" fill="#1A1410"/><text x="-4" y="30" font-size="11" fill="#7A6F65">N</text></g>`;
   s+=`<g transform="translate(${W-barPx-20},${H-18})"><line x1="0" y1="0" x2="${barPx}" y2="0" stroke="#1A1410" stroke-width="2"/><line x1="0" y1="-4" x2="0" y2="4" stroke="#1A1410" stroke-width="2"/><line x1="${barPx}" y1="-4" x2="${barPx}" y2="4" stroke="#1A1410" stroke-width="2"/><text x="0" y="-8" font-size="11" fill="#7A6F65">${bar} m</text></g>`;
   list.forEach(p=>{if(Math.hypot(p.dx-p.x,p.dy-p.y)>4)s+=`<line x1="${p.x}" y1="${p.y}" x2="${p.dx}" y2="${p.dy}" stroke="#7A6F65" stroke-width="1"/>`;s+=`<circle cx="${p.x}" cy="${p.y}" r="2.5" fill="#1A1410"/>`});
@@ -253,7 +262,7 @@ function home(){
 }
 
 function gallery(s){
-  const v=s.owner?vend(s.id):null,imgs=v&&v.photos.length?v.photos:null;
+  const v=s.owner?vend(s.id):null,imgs=v&&v.photos.length?v.photos:(s.pics&&s.pics.length>1?s.pics:null);
   const main=imgs?imgs[Math.min(state.mainIdx,imgs.length-1)]:coverSrc(s);
   if(!imgs&&!hasPic(s))return `<div class="photo ph"><div style="transform:scale(1.8)">${logo()}</div><div style="margin-top:10px">No photo yet</div></div>`;
   let h=`<img class="photo" src="${main}" alt="" style="object-position:${s.owner?'50% 30%':'center'}" onerror="this.style.visibility='hidden'"/>`;

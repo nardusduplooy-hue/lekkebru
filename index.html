@@ -45,6 +45,8 @@ button{font-family:inherit}
 .c-fixed{background:var(--green-l);color:var(--green-d)}
 .c-mobile{background:var(--amber-l);color:#633806}
 .c-open{background:var(--green-l);color:var(--green-d)}
+.c-open::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#1D9E75;margin-right:6px;vertical-align:1px;animation:blinkdot 1s ease-in-out infinite}
+@keyframes blinkdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.25;transform:scale(0.7)}}
 .c-closed{background:#FCEBEB;color:#791F1F}
 .score{font-family:'Syne',sans-serif;font-weight:800;color:var(--green)}
 .list{padding:14px 20px 0}
@@ -114,6 +116,7 @@ a.btn{display:inline-block;text-decoration:none}
 .btn.full{display:block;width:100%;text-align:center;padding:14px}
 .msgbox{background:var(--bg);border:0.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.45;margin:10px 0;white-space:pre-wrap;word-break:break-word}
 select.in{appearance:auto}
+.pill{border:0.5px solid var(--border);background:var(--card);border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer;color:var(--text);margin-left:8px}
 .file.alt{background:var(--card);color:var(--text);border:0.5px solid var(--border)}
 .badge-q{background:#9A8F84}
 .chipx{display:inline-block;font-size:11px;border:1px dashed var(--amber);color:#633806;border-radius:6px;padding:2px 7px;margin-right:6px}
@@ -139,6 +142,8 @@ const SPOTS=[
 {id:'vida-e-caffe',name:'Vida e Caffe',type:'fixed',area:'Strand',lat:-34.117134,lng:18.825699},
 {id:'coffee-shop-106-grasse',name:'Coffee shop at 106 Grasse',type:'fixed',area:'Strand',lat:-34.115990,lng:18.823994},
 {id:'narries-brew',name:"Narrie's Brew",type:'mobile',area:'Strand',lat:-34.110000,lng:18.820500,owner:true},
+{id:'jannes-dark-coffee',name:"Jannes' Dark Coffee",type:'mobile',area:'Strand',lat:-34.113000,lng:18.822300,owner:true},
+{id:'jackies-coffee-parlor',name:"Jackie's Coffee Parlor",type:'fixed',area:'Strand',lat:-34.107500,lng:18.819100,owner:true},
 {id:'chilli-bean-co',name:'Chilli Bean Co',type:'fixed',area:'Strand',lat:-34.106163,lng:18.818331},
 {id:'colourful-trailer',name:'Colourful coffee trailer (name needed)',type:'mobile',area:'Strand',lat:-34.105183,lng:18.817688},
 {id:'glass-building-cafe',name:'Cafe in glass building (name needed)',type:'fixed',area:'Strand',lat:-34.104649,lng:18.817331},
@@ -189,8 +194,13 @@ function saveHnd(){try{localStorage.setItem(HKEY,JSON.stringify(hnd))}catch(e){}
 function savePins(){try{localStorage.setItem(PKEY,JSON.stringify(pins))}catch(e){}}
 Object.keys(pins).forEach(id=>{const sp=SPOTS.find(x=>x.id===id);if(sp&&sp.lat==null&&pins[id]&&isFinite(pins[id].lat)){sp.lat=pins[id].lat;sp.lng=pins[id].lng}});
 const ADMIN_SALT='214dbe89e9b3bfb54b4eb6425670f0bd',ADMIN_HASH='3da16c329ed0691be345deeff631671320ac2f41615983266478ff55c18cdda9';
-async function checkAdmin(code){try{const norm=String(code).toLowerCase().replace(/[^a-z0-9]/g,'');const salt=Uint8Array.from(ADMIN_SALT.match(/../g).map(h=>parseInt(h,16)));const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(norm),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},key,256);return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,'0')).join('')===ADMIN_HASH}catch(e){return false}}
-function vis(){return SPOTS.filter(x=>!x.owner||state.admin)}
+async function verifyCode(code,saltHex,hashHex){try{const norm=String(code).toLowerCase().replace(/[^a-z0-9]/g,'');const salt=Uint8Array.from(saltHex.match(/../g).map(h=>parseInt(h,16)));const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(norm),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},key,256);return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,'0')).join('')===hashHex}catch(e){return false}}
+async function checkAdmin(code){return verifyCode(code,ADMIN_SALT,ADMIN_HASH)}
+const OWNERS={'narries-brew':{salt:'cd19c1c5661a0e9d642875cbd03d2814',hash:'e05a87dffa852c932300a51a8a5432d07c43686deaf8734dc8c5ed4407810453'},'jannes-dark-coffee':{salt:'d4f03279532c43b0942ea931026d6a1b',hash:'a74c8cabe861d00aaa6eba1d30253f58eb57ed64bd00310156e3d077dd4dbed5'},'jackies-coffee-parlor':{salt:'da69d6c5854de63a3a1671cc542fec6c',hash:'8a5c4b528dfa9abfdff36af20d47d789d02cacbb65c4f65e0c994c77256c418c'}};
+const OKEY='lekkebru:owned';
+const REG_WHATSAPP='',REG_EMAIL='';
+function canOwner(id){return state.admin||state.owned.indexOf(id)>-1}
+function vis(){return SPOTS.filter(x=>!x.owner||canOwner(x.id))}
 function saveSpots(){try{localStorage.setItem(SKEY,JSON.stringify(SPOTS.filter(x=>x.user)));return true}catch(e){return false}}
 function saveCts(){try{localStorage.setItem(CKEY,JSON.stringify(cts))}catch(e){}}
 function saveClaims(){try{localStorage.setItem(LKEY,JSON.stringify(claims))}catch(e){}}
@@ -220,7 +230,7 @@ function galleryItems(s){
 function coverSrc(s){const it=galleryItems(s);return it.length?it[0].src:null}
 function igOf(s){const h=hnd[s.id]||{};return String(h.ig||s.ig||'').replace(/^@/,'').replace(/[^A-Za-z0-9._]/g,'')}
 function img(s,cls){const src=coverSrc(s);if(!src)return `<div class="${cls} ph">${logo()}</div>`;return `<img class="${cls}" src="${src}" alt="" style="object-position:${s.owner?'38% 35%':'center'}" onerror="this.style.visibility='hidden'"/>`}
-let state={area:'Strand',sel:null,detail:null,view:'customer',dtab:'about',draft:{},mainIdx:0,page:null,pid:null,ad:null,cl:null,pn:null,justAdded:false,claimDone:false,tags:'',hf:'',jp:null,jptags:'',admin:(()=>{try{return localStorage.getItem('lekkebru:admin')==='1'}catch(e){return false}})()};
+let state={area:'Strand',sel:null,detail:null,view:'customer',dtab:'about',draft:{},mainIdx:0,page:null,pid:null,ad:null,cl:null,pn:null,justAdded:false,claimDone:false,tags:'',hf:'',jp:null,jptags:'',oc:'',rg:null,owned:(()=>{try{const a=JSON.parse(localStorage.getItem('lekkebru:owned')||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string'):[]}catch(e){return []}})(),admin:(()=>{try{return localStorage.getItem('lekkebru:admin')==='1'}catch(e){return false}})()};
 function initDraft(id){const s=spot(id);const sp=s&&s.owner?vend(id).special:null;state.draft={stitle:sp?sp.title:'',sdesc:sp?sp.desc:'',sprice:sp?sp.price:'',suntil:sp?sp.until:'',iname:'',iprice:''}}
 
 function layout(area){
@@ -261,7 +271,7 @@ function mapSVG(L){
   s+=`<g transform="translate(${W-barPx-20},${H-18})"><line x1="0" y1="0" x2="${barPx}" y2="0" stroke="#1A1410" stroke-width="2"/><line x1="0" y1="-4" x2="0" y2="4" stroke="#1A1410" stroke-width="2"/><line x1="${barPx}" y1="-4" x2="${barPx}" y2="4" stroke="#1A1410" stroke-width="2"/><text x="0" y="-8" font-size="11" fill="#7A6F65">${bar} m</text></g>`;
   list.forEach(p=>{if(Math.hypot(p.dx-p.x,p.dy-p.y)>4)s+=`<line x1="${p.x}" y1="${p.y}" x2="${p.dx}" y2="${p.dy}" stroke="#7A6F65" stroke-width="1"/>`;s+=`<circle cx="${p.x}" cy="${p.y}" r="2.5" fill="#1A1410"/>`});
   list.forEach(p=>{const on=state.sel===p.id,st=status(p.id);
-    s+=`<g data-pin="${p.id}" style="cursor:pointer">${(p.user||p.src==='web')?`<circle cx="${p.dx}" cy="${p.dy}" r="${on?20:17}" fill="none" stroke="#1A1410" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}<circle cx="${p.dx}" cy="${p.dy}" r="${on?15:12}" fill="${colour(p.type)}" stroke="${on?'#1A1410':'#fff'}" stroke-width="${on?3:2}"/><text x="${p.dx}" y="${p.dy+4}" text-anchor="middle" font-size="12" font-weight="500" fill="#fff" style="pointer-events:none">${p.n}</text>${st?`<circle cx="${p.dx+11}" cy="${p.dy-11}" r="6" fill="${st==='open'?'#1D9E75':'#A32D2D'}" stroke="#fff" stroke-width="1.8" style="pointer-events:none"/>`:''}</g>`});
+    s+=`<g data-pin="${p.id}" style="cursor:pointer">${(p.user||p.src==='web')?`<circle cx="${p.dx}" cy="${p.dy}" r="${on?20:17}" fill="none" stroke="#1A1410" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}${st==='open'?`<circle cx="${p.dx}" cy="${p.dy}" r="12" fill="#2ECC71" opacity="0.5" style="pointer-events:none"><animate attributeName="r" values="12;26;12" dur="1.3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.55;0;0.55" dur="1.3s" repeatCount="indefinite"/></circle>`:''}<circle cx="${p.dx}" cy="${p.dy}" r="${on?15:12}" fill="${st==='open'?'#17A05B':colour(p.type)}" stroke="${on?'#1A1410':'#fff'}" stroke-width="${on?3:2}">${st==='open'?'<animate attributeName="fill" values="#128A4C;#3FD982;#128A4C" dur="0.9s" repeatCount="indefinite"/>':''}</circle><text x="${p.dx}" y="${p.dy+4}" text-anchor="middle" font-size="12" font-weight="500" fill="#fff" style="pointer-events:none">${p.n}</text>${st==='closed'?`<circle cx="${p.dx+11}" cy="${p.dy-11}" r="6" fill="#A32D2D" stroke="#fff" stroke-width="1.8" style="pointer-events:none"/>`:''}</g>`});
   if(state.sel){const p=list.find(q=>q.id===state.sel);if(p){const w=Math.min(p.name.length*6.4+16,230),lx=Math.min(Math.max(p.dx-w/2,6),W-w-6),ly=p.dy-34;
     s+=`<g style="pointer-events:none"><rect x="${lx}" y="${ly}" width="${w}" height="22" rx="6" fill="#1A1410"/><text x="${lx+w/2}" y="${ly+15}" text-anchor="middle" font-size="12" fill="#fff">${esc(p.name.length>34?p.name.slice(0,33)+'...':p.name)}</text></g>`}}
   return s+'</svg>';
@@ -273,11 +283,11 @@ function shareText(msg){if(navigator.share){navigator.share({title:'LekkeBru',te
 function home(){
   const L=layout(state.area),all=L.list.concat(L.unp);
   const sel=state.sel&&all.find(s=>s.id===state.sel);
-  let h=`<div class="top"><div class="wm">${logo()}Lekke<em>Bru</em></div><span style="font-size:12px;color:var(--muted)">${state.admin?'Admin &middot; ':''}${vis().length} spots</span></div>
+  let h=`<div class="top"><div class="wm">${logo()}Lekke<em>Bru</em></div><div style="display:flex;align-items:center"><span style="font-size:12px;color:var(--muted)">${state.admin?'Admin &middot; ':''}${vis().length} spots</span><button class="pill" data-owners="1">Owners</button></div></div>
   <div class="hero"><h1>Where's the lekker coffee,<br><em>bru?</em></h1><p>Tap a pin to see who's there, what's open and what's on today.</p></div>
   <div class="tabs">${areas().map(a=>`<button class="tab${a===state.area?' on':''}" data-area="${esc(a)}">${esc(a)}</button>`).join('')}</div>
   <div class="mapwrap">${mapSVG(L)}</div>
-  <div class="legend"><span><i style="background:#1D6B4B"></i>Fixed shop</span><span><i style="background:#BA7517"></i>Mobile trailer or kiosk</span><span><i style="background:#fff;border:1.5px dashed #1A1410;box-sizing:border-box"></i>Not verified yet</span></div>`;
+  <div class="legend"><span><i style="background:#1D6B4B"></i>Fixed shop</span><span><i style="background:#BA7517"></i>Mobile trailer or kiosk</span><span><i style="background:#fff;border:1.5px dashed #1A1410;box-sizing:border-box"></i>Not verified yet</span><span><i style="background:#17A05B;animation:blinkdot 1s ease-in-out infinite"></i>Flashing green = open now</span></div>`;
   if(sel){const v=sel.owner?vend(sel.id):null,ig=igOf(sel);
     const about=sel.owner?(v.about?esc(v.about):''):(sel.src==='web'?'Found online and not verified yet. Help out: pin it, add a photo and rate it.':(sel.user?'Added by a visitor. The owner has not claimed it yet.':'The owner has not added details yet.'));
     h+=`<div class="prev2" id="pv"><div style="display:flex;gap:12px;align-items:center">${img(sel,'thumb')}<div style="flex:1;min-width:0"><div class="pv-name">${sel.n?sel.n+'. ':''}${esc(sel.name)}</div><div class="pv-sub"><span class="chip ${sel.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(sel.type)}</span>${statusChip(sel.id)}${sel.lat==null?'<span class="chipx">needs a pin</span>':''}</div>${ig?`<div class="pv-sub">@${esc(ig)}</div>`:''}</div></div>${v&&v.special?`<div class="spec-strip"><b>Today</b> ${specialLine(v)}</div>`:''}${about?`<div class="blurb">${about}</div>`:''}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-open="${sel.id}">See details</button><button class="btn alt" data-rate="${sel.id}">Ratings</button>${sel.lat==null?`<button class="btn alt" data-pinit="${sel.id}">Pin it</button>`:''}</div>
@@ -285,13 +295,15 @@ function home(){
     ${(state.jp&&state.jp.id===sel.id&&(vph[sel.id]||[])[state.jp.idx])?`<div class="spec-strip" style="background:var(--green-l);color:var(--green-d);margin-top:10px"><div style="display:flex;gap:10px;align-items:center"><img src="${vph[sel.id][state.jp.idx].src}" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover"/><b>Photo added.</b> Who was with you?</div><input class="in" style="margin-top:8px" data-jptags="1" value="${esc(state.jptags)}" placeholder="Tag friends: Jannes, @jackie"/><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn alt" data-jpsave="1">Save tags</button><button class="btn" data-jpshare="1">Tag and tell friends</button></div></div>`:''}</div>`;
   }else h+=`<div class="prev">Tap a pin on the map or a name below.</div>`;
   h+=`<div class="prev2" style="background:var(--green-l);border-color:#97C459"><div style="font-weight:500">Visited somewhere that is not on the map?</div><div class="blurb" style="margin-top:4px">Snap a photo, drop the pin, and let them know they are on LekkeBru.</div><button class="btn" data-addspot="1">Add a cart or shop</button> <button class="btn alt" data-invite="1">Invite friends</button></div>`;
-  if(state.admin)h+=`<div class="prev2" style="background:var(--amber-l);border-color:#FAC775"><div style="font-weight:500">Owner test cart (admin only)</div><div class="blurb" style="margin-top:4px">Narrie's Brew is a fictional cart for testing the owner tools. Only you can see it.</div><button class="btn" data-owner="1">Open owner view</button></div>`;
+  const mine=SPOTS.filter(x=>x.owner&&canOwner(x.id));
+  if(mine.length)h+=`<div class="prev2" style="background:var(--amber-l);border-color:#FAC775"><div style="font-weight:500">${state.admin?'Owner test carts (admin)':'Your owner view'}</div><div class="blurb" style="margin-top:4px">${state.admin?'Fictional carts for testing the owner tools. Only you can see them.':'Open your cart to manage it.'}</div><div style="display:flex;gap:8px;flex-wrap:wrap">${mine.map(x=>`<button class="btn" data-owner="${x.id}">${esc(x.name)}</button>`).join('')}${state.admin?'':'<button class="btn alt" data-osignout="1">Sign out</button>'}</div></div>`;
+  if(claims.length&&!mine.length){const cl=claims[claims.length-1];h+=`<div class="prev2"><div style="font-weight:500">Registration sent</div><div class="blurb" style="margin-top:4px">We have your request for ${esc(cl.spot)}. We will send you an access code once we have checked it.</div><button class="btn alt" data-osignin="1">I have a code</button></div>`}
   h+=`<div class="list"><h2>${esc(state.area)} spots${L.list.length?', north to south':''}</h2>`;
   L.list.forEach(s=>{
     h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num" style="background:${colour(s.type)}">${s.n}</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span>${s.owner?'<span class="tag-test">test</span>':''}${s.user?'<span class="tag-test">visitor added</span>':''}${s.src==='web'?'<span class="tag-test">found online</span>':''}<br><span style="font-size:12px;color:var(--muted)">${typeLabel(s.type)}${igOf(s)?' &middot; @'+esc(igOf(s)):''}</span>${s.owner?' '+statusChip(s.id):''}</span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`});
   if(L.unp.length){h+=`<h2 style="margin-top:16px">Needs a pin</h2><div style="font-size:12px;color:var(--muted);margin:-4px 0 8px;line-height:1.4">We found these online but nobody has pinned them yet. If you are there, open one and drop its pin.</div>`;
     L.unp.forEach(s=>{h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num badge-q">?</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span><span class="tag-test">found online</span><br><span style="font-size:12px;color:var(--muted)">${esc(s.addr||s.area)}</span></span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`})}
-  h+=`</div><div class="foot">Ratings, photos, pins and anything you add are saved on this phone only for now. Tap below to copy them so they can be added to the shared app.<br><button class="btn alt" data-export="1">Copy my ratings, photos and added spots</button><div id="exp"></div>${state.admin?'<br><button class="btn red" data-lock="1">Lock admin</button>':''}</div>`;
+  h+=`</div><div class="foot">Ratings, photos, pins and anything you add are saved on this phone only for now. Tap below to copy them so they can be added to the shared app.<br><button class="btn alt" data-export="1">Copy my ratings, photos and added spots</button><div id="exp"></div><div style="margin-top:10px"><button class="clr" data-owners="1">Owners: register or sign in</button></div>${state.admin?'<br><button class="btn red" data-lock="1">Lock admin</button>':''}</div>`;
   return h;
 }
 
@@ -310,7 +322,7 @@ function menuView(v){
 }
 function ownerTools(s){
   const v=vend(s.id),d=state.draft;
-  let h=`<div class="note" style="margin-top:12px"><b>Owner view.</b> This is what a cart owner manages. Switch to Customer view to see what the public sees.</div>
+  let h=`<div class="note" style="margin-top:12px"><b>Owner view.</b> This is what a cart owner manages. Switch to Customer view to see what the public sees.</div>${state.admin?'':'<div class="note" style="margin-top:6px">Signed in as the owner of this spot. <button class="clr" data-osignout="1">Sign out</button></div>'}
   <div class="sec"><h3>Are you open?</h3><div class="two"><button class="tg${v.open?' on-open':''}" data-setopen="1">Open now</button><button class="tg${!v.open?' on-closed':''}" data-setopen="0">Closed</button></div><div class="ok" style="color:var(--muted)">${v.openedAt?'Last updated at '+hhmm(v.openedAt):'Not updated yet'}. Customers see this on the map pin and in the list.</div></div>
   <div class="sec"><h3>Cover photo and photos</h3>
     <div style="font-size:13px;color:var(--muted)">${v.photos.length?'The photo marked Cover is the first one customers see, on the map card and at the top of your page. Tap Make cover on any photo to change it.':'Customers currently see the default illustration. Add a photo and it becomes your cover.'} Up to 8 photos.</div>
@@ -399,9 +411,11 @@ function ratingsTab(s,r){
   return h;
 }
 function detail(){
-  const s=spot(state.detail),r=rec(s.id),v=s.owner?vend(s.id):null,owner=s.owner&&state.admin&&state.view==='owner',ig=igOf(s);
+  const s=spot(state.detail);
+  if(s.owner&&!canOwner(s.id)){state.detail=null;return home()}
+  const r=rec(s.id),v=s.owner?vend(s.id):null,owner=s.owner&&canOwner(s.id)&&state.view==='owner',ig=igOf(s);
   let h=`<div class="top"><button class="back" data-back="1">&larr; Back to map</button><div class="wm">${logo()}Lekke<em>Bru</em></div></div>`;
-  if(s.owner&&state.admin)h+=`<div class="seg"><button class="${owner?'on':''}" data-view="owner">Owner view</button><button class="${owner?'':'on'}" data-view="customer">Customer view</button></div>`;
+  if(s.owner&&canOwner(s.id))h+=`<div class="seg"><button class="${owner?'on':''}" data-view="owner">Owner view</button><button class="${owner?'':'on'}" data-view="customer">Customer view</button></div>`;
   h+=gallery(s);
   h+=`<div class="ident"><h1>${esc(s.name)}${s.owner?'<span class="tag-test">test cart</span>':''}${s.user?'<span class="tag-test">visitor added</span>':''}${s.src==='web'?'<span class="tag-test">found online</span>':''}</h1><div style="margin-top:8px"><span class="chip ${s.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(s.type)}</span>${statusChip(s.id)}<span style="font-size:12px;color:var(--muted)">${esc(s.area)}${ig?' &middot; @'+esc(ig):''}</span></div></div>`;
   if(owner)return h+ownerTools(s);
@@ -418,7 +432,7 @@ function notifyMsg(s){const ig=igOf(s);return `Hi${ig?' @'+ig:''}! I just added 
 function waNum(c){if(!c||c.kind!=='whatsapp')return '';let d=String(c.val||'').replace(/\D/g,'');if(d.startsWith('0'))d='27'+d.slice(1);return d.length>=10?d:''}
 function igHandle(c){if(!c||c.kind!=='instagram')return '';return String(c.val||'').trim().replace(/^.*instagram\.com\//,'').replace(/^@/,'').replace(/[\/\s?].*$/,'').replace(/[^A-Za-z0-9._]/g,'')}
 function copyText(txt,done){const fb=()=>{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();try{document.execCommand('copy');done&&done()}catch(e){toast('Could not copy')}t.remove()};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>done&&done()).catch(fb)}else fb()}
-function newDraft(){return {name:'',type:'fixed',area:state.area||'Strand',areaOther:'',lat:null,lng:null,locText:'',photo:null,ig:'',ckind:'whatsapp',cval:'',note:'',dup:null,confirmDup:false}}
+function newDraft(){return {mine:false,name:'',type:'fixed',area:state.area||'Strand',areaOther:'',lat:null,lng:null,locText:'',photo:null,ig:'',ckind:'whatsapp',cval:'',note:'',dup:null,confirmDup:false}}
 function topBar(label){return `<div class="top"><button class="back" data-back="1">&larr; ${label}</button><div class="wm">${logo()}Lekke<em>Bru</em></div></div>`}
 function addView(){
   const a=state.ad;
@@ -445,6 +459,7 @@ function addView(){
     <input class="in" data-af="cval" value="${esc(a.cval)}" placeholder="${a.ckind==='whatsapp'?'082 123 4567':a.ckind==='email'?'name@example.com':'@theirhandle'}"/>
   </div>
   <div class="sec"><h3>Anything we should know? (optional)</h3><textarea class="in" data-af="note" placeholder="What you had, when you saw them open, where exactly they park">${esc(a.note)}</textarea></div>
+  <div class="sec"><label style="display:flex;gap:12px;align-items:center;font-size:15px;color:var(--text);margin:0"><input type="checkbox" data-amine="1" ${a.mine?'checked':''} style="width:22px;height:22px"/> I own or run this place</label><div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4">Tick this and we take you straight on to register it as yours.</div></div>
   <div style="padding:16px 20px 40px"><button class="btn full" data-submitadd="1">Add to LekkeBru</button></div>`;
   return h;
 }
@@ -490,23 +505,62 @@ function notifyView(){
   h+=`<div style="padding:16px 20px 40px"><button class="btn full" data-seeadded="${s.id}">See it on the map</button></div>`;
   return h;
 }
+function ownersView(){
+  const mine=SPOTS.filter(x=>x.owner&&canOwner(x.id));
+  let h=topBar('Back')+`<div class="hero"><h1>Owners,<br><em>start here</em></h1><p>Run a coffee cart or shop? Get a free listing that you control.</p></div>
+  <div class="sec"><h3>New here?</h3><button class="btn full" style="margin-top:0" data-oreg="1">Register my cart or shop</button><div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.45">Takes about a minute. We check it is really yours, then send you an access code.</div></div>
+  <div class="sec"><h3>Already registered?</h3><button class="btn alt full" style="margin-top:0" data-osignin="1">I have an access code</button></div>`;
+  if(mine.length)h+=`<div class="sec"><h3>You are signed in</h3><div style="display:flex;gap:8px;flex-wrap:wrap">${mine.map(x=>`<button class="btn" data-owner="${x.id}">Open ${esc(x.name)}</button>`).join('')}${state.admin?'':'<button class="btn alt" data-osignout="1">Sign out</button>'}</div></div>`;
+  h+=`<div class="sec"><h3>What owners can do</h3><div style="font-size:14px;line-height:1.8;color:var(--text)">Say when you are open<br>Post today's special<br>Upload your menu and photos<br>Choose the cover photo people see first</div></div><div style="height:40px"></div>`;
+  return h;
+}
+function signinView(){
+  return topBar('Back')+`<div class="hero"><h1>Owner<br><em>sign in</em></h1><p>Type or paste the access code we sent you.</p></div>
+  <div class="sec"><h3>Access code</h3><input class="in" style="font-size:18px;letter-spacing:1px" data-oc="1" value="${esc(state.oc)}" placeholder="xxxxx-xxxxx" autocapitalize="none" autocomplete="off" autocorrect="off" spellcheck="false"/>
+  <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4">It signs you in by itself once the whole code is in.</div>
+  <button class="btn full" style="margin-top:12px" data-osubmit="1">Sign in</button></div>
+  <div class="sec"><h3>No code yet?</h3><button class="btn alt" style="margin-top:0" data-oreg="1">Register my cart or shop</button></div>`;
+}
+function stepDots(n){return `<div style="display:flex;gap:6px;align-items:center;margin:4px 20px 0;font-size:12px;color:var(--muted)">${[1,2,3].map(i=>`<span style="width:${i===n?22:8}px;height:8px;border-radius:4px;background:${i<=n?'var(--green)':'var(--border)'}"></span>`).join('')}<span style="margin-left:6px">Step ${n} of 3</span></div>`}
+function rres(q){
+  q=String(q||'').trim().toLowerCase();
+  if(q.length<2)return '<div style="font-size:13px;color:var(--muted);margin-top:10px">Type at least 2 letters.</div>';
+  const m=vis().filter(x=>!x.owner&&x.name.toLowerCase().indexOf(q)>-1).slice(0,8);
+  if(!m.length)return '<div style="font-size:13px;color:var(--muted);margin-top:10px">No match yet. It may not be on the map, so add your place first (below).</div>';
+  return '<div style="margin-top:10px">'+m.map(x=>`<button class="item" data-rpick="${x.id}"><span style="flex:1;min-width:0"><span style="font-size:15px;font-weight:500">${esc(x.name)}</span><br><span style="font-size:12px;color:var(--muted)">${esc(x.area)}</span></span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`).join('')+'</div>';
+}
+function regMsg(){
+  const g=state.rg,s=spot(g.pid);
+  return `Hi LekkeBru! I would like to register my cart or shop.\nPlace: ${s.name} (${s.area})\nName: ${g.name.trim()} (${g.role})\nContact: ${g.contact.trim()}\n${spotLink(s)}`.replace(/\\n/g,'\n');
+}
 function claimView(){
-  const s=spot(state.pid),c=state.cl;
-  let h=topBar('Back');
-  if(state.claimDone){
-    return h+`<div class="hero"><h1>Claim request<br><em>saved</em></h1><p>We will check it is really you before you get access.</p></div>
-    <div class="sec"><h3>What happens next</h3><div style="font-size:14px;line-height:1.5;color:var(--muted)">Once LekkeBru is live, claims reach one inbox and we verify each owner before they can edit. Until then, your request is saved on this phone.</div></div>
-    ${state.admin?`<div class="sec"><h3>Owner tools (admin)</h3><button class="btn" data-owner="1">Open the test cart owner view</button></div>`:`<div class="sec"><h3>What owners will get</h3><div style="font-size:14px;line-height:1.5;color:var(--muted)">Say you are open, post specials, upload a menu and choose your cover photo. These tools unlock for verified owners when LekkeBru goes live.</div></div>`}
+  const g=state.rg,s=g.pid?spot(g.pid):null;
+  const back=(g.step===2)?`<button class="back" data-rback="1">&larr; Back</button>`:`<button class="back" data-back="1">&larr; ${g.step===3?'Close':'Cancel'}</button>`;
+  let h=`<div class="top">${back}<div class="wm">${logo()}Lekke<em>Bru</em></div></div>`;
+  if(g.step===1){
+    return h+`<div class="hero"><h1>Find your<br><em>cart or shop</em></h1><p>Type its name, then tap it when it appears.</p></div>${stepDots(1)}
+    <div class="sec"><input class="in" style="font-size:16px" data-rq="1" value="${esc(g.q)}" placeholder="Start typing the name" autocomplete="off"/><div id="rres">${rres(g.q)}</div></div>
+    <div class="sec"><h3>Not on the list?</h3><div style="font-size:14px;line-height:1.45;color:var(--muted)">Add your place to the map first. It takes a minute, then you carry straight on.</div><button class="btn" data-addspot="1" data-mine="1">Add my place first</button></div><div style="height:40px"></div>`;
+  }
+  if(g.step===2&&s){
+    return h+`<div class="hero"><h1>Almost<br><em>there</em></h1><p>Two quick details so we can send your access code.</p></div>${stepDots(2)}
+    <div class="sec"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">You are registering</div><div style="font-size:16px;font-weight:500;margin-top:2px">${esc(s.name)}</div><div style="font-size:12px;color:var(--muted)">${esc(s.area)}</div></div><button class="clr" data-rback="1">Change</button></div></div>
+    <div class="sec"><label style="margin-top:0">Your name</label><input class="in" data-rf="name" value="${esc(g.name)}" placeholder="Your name" autocomplete="name"/>
+    <label>WhatsApp number or email</label><input class="in" data-rf="contact" value="${esc(g.contact)}" placeholder="082 123 4567 or name@example.com" autocomplete="off"/>
+    <label>I am the</label><div class="roasts">${['Owner','Manager','Staff'].map(r=>`<button class="rb${g.role===r?' on':''}" data-rrole="${r}">${r}</button>`).join('')}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4">We only use this to contact you about your listing.</div></div>
+    <div style="padding:16px 20px 40px"><button class="btn full" data-rsubmit="1">Send my registration</button></div>`;
+  }
+  if(g.step===3&&s){
+    const msg=regMsg(),enc=encodeURIComponent(msg);
+    const wa=REG_WHATSAPP?`https://wa.me/${REG_WHATSAPP}?text=${enc}`:`https://wa.me/?text=${enc}`;
+    return h+`<div class="hero"><h1>You are<br><em>registered</em></h1><p>One last tap: send us your request so we can check it.</p></div>${stepDots(3)}
+    <div class="sec"><h3>Send your request</h3><a class="btn full" style="margin-top:0" href="${wa}" target="_blank" rel="noopener">Send on WhatsApp</a>${REG_EMAIL?`<a class="btn alt full" style="margin-top:8px" href="mailto:${esc(REG_EMAIL)}?subject=${encodeURIComponent('LekkeBru owner registration')}&body=${enc}">Send by email</a>`:''}<button class="btn alt full" style="margin-top:8px" data-rshare="1">Share another way</button>${REG_WHATSAPP?'':'<div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4">Choose LekkeBru in your contacts when WhatsApp opens.</div>'}</div>
+    <div class="sec"><h3>What happens next</h3><div style="font-size:14px;line-height:1.7"><b>1.</b> We check it is really your place.<br><b>2.</b> We send you an access code or a link.<br><b>3.</b> Open it and you are in your owner view.</div></div>
+    <div class="sec"><h3>Already have your code?</h3><button class="btn" style="margin-top:0" data-osignin="1">Sign in</button></div>
     <div style="padding:16px 20px 40px"><button class="btn alt full" data-back="1">Done</button></div>`;
   }
-  h+=`<div class="hero"><h1>Claim<br><em>${esc(s.name)}</em></h1><p>Owners and managers can claim a spot for free.</p></div>
-  <div class="sec"><h3>About you</h3>
-    <label style="margin-top:0">Your name</label><input class="in" data-cf="name" value="${esc(c.name)}" placeholder="Your name"/>
-    <label>Your role</label><div class="roasts">${['Owner','Manager','Staff'].map(r=>`<button class="rb${c.role===r?' on':''}" data-crole="${r}">${r}</button>`).join('')}</div>
-    <label>WhatsApp number or email</label><input class="in" data-cf="contact" value="${esc(c.contact)}" placeholder="082 123 4567 or name@example.com"/>
-  </div>
-  <div style="padding:16px 20px 40px"><button class="btn full" data-submitclaim="1">Send claim request</button></div>`;
-  return h;
+  state.page=null;return home();
 }
 function importFromHash(){
   const m=location.hash.match(/^#s=([^&\s]+)$/);if(!m)return;
@@ -533,6 +587,7 @@ function submitAdd(){
   SPOTS.push(sp);
   if(!saveSpots()){SPOTS.pop();toast('Phone storage is full. Remove the photo and try again.');return}
   if(a.cval.trim()){cts[sp.id]={kind:a.ckind,val:a.cval.trim()};saveCts()}
+  if(a.mine){state.rg={step:2,q:'',pid:sp.id,name:'',role:'Owner',contact:''};state.page='claim';state.area=sp.area;state.sel=sp.id;window.scrollTo(0,0);render();return}
   state.area=sp.area;state.sel=sp.id;state.page='notify';state.pid=sp.id;state.justAdded=true;window.scrollTo(0,0);render();
 }
 function useGPS(tgt){
@@ -546,9 +601,22 @@ async function askAdmin(){
   if(await checkAdmin(c)){state.admin=true;try{localStorage.setItem(AKEY,'1')}catch(e){}toast('Admin unlocked');render()}else toast('Wrong passcode');
 }
 let wmTaps=[];
+async function ownerLogin(fromLink){
+  const code=state.oc.trim();if(!code){toast('Type your access code');return}
+  toast('Checking...');
+  for(const id of Object.keys(OWNERS)){
+    if(await verifyCode(code,OWNERS[id].salt,OWNERS[id].hash)){
+      if(state.owned.indexOf(id)<0)state.owned.push(id);
+      try{localStorage.setItem(OKEY,JSON.stringify(state.owned))}catch(e){}
+      const sp=spot(id);state.page=null;state.oc='';state.area=sp.area;state.sel=null;
+      toast('Signed in as owner of '+sp.name);openDetail(id,'owner','about');return;
+    }
+  }
+  toast('That code was not recognised');if(fromLink){state.page='osignin';render()}
+}
 function render(){
   const y=window.scrollY;
-  document.getElementById('app').innerHTML=state.page==='add'?addView():state.page==='pin'?pinView():state.page==='notify'?notifyView():state.page==='claim'?claimView():state.detail?detail():home();
+  document.getElementById('app').innerHTML=state.page==='owners'?ownersView():state.page==='osignin'?signinView():state.page==='add'?addView():state.page==='pin'?pinView():state.page==='notify'?notifyView():state.page==='claim'?claimView():state.detail?detail():home();
   window.scrollTo(0,y);
 }
 function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2400)}
@@ -578,11 +646,11 @@ function openDetail(id,view,tab){state.detail=id;state.view=view||'customer';sta
 
 document.addEventListener('click',e=>{
   if(e.target.closest('.wm')){const now=Date.now();wmTaps=wmTaps.filter(t=>now-t<4000);wmTaps.push(now);if(wmTaps.length>=5){wmTaps=[];askAdmin()}return}
-  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export],[data-setopen],[data-pub],[data-rmspecial],[data-additem],[data-delitem],[data-delphoto],[data-delmenu],[data-reset],[data-view],[data-main],[data-owner],[data-rate],[data-tab],[data-cover],[data-vroast],[data-addspot],[data-atype],[data-gps],[data-adddup],[data-submitadd],[data-seeadded],[data-notify],[data-claim],[data-crole],[data-submitclaim],[data-nkind],[data-nsave],[data-copymsg],[data-share],[data-ckind],[data-rmaddphoto],[data-pinit],[data-pingps],[data-savepin],[data-lock],[data-savehandle],[data-tagshare],[data-rmvph],[data-invite],[data-jpsave],[data-jpshare]');
+  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export],[data-setopen],[data-pub],[data-rmspecial],[data-additem],[data-delitem],[data-delphoto],[data-delmenu],[data-reset],[data-view],[data-main],[data-owner],[data-rate],[data-tab],[data-cover],[data-vroast],[data-addspot],[data-atype],[data-gps],[data-adddup],[data-submitadd],[data-seeadded],[data-notify],[data-claim],[data-crole],[data-submitclaim],[data-nkind],[data-nsave],[data-copymsg],[data-share],[data-ckind],[data-rmaddphoto],[data-pinit],[data-pingps],[data-savepin],[data-lock],[data-savehandle],[data-tagshare],[data-rmvph],[data-invite],[data-jpsave],[data-jpshare],[data-osignin],[data-oreg],[data-osignout],[data-osubmit],[data-owners],[data-claim],[data-rpick],[data-rback],[data-rsubmit],[data-rshare],[data-rrole]');
   if(!t)return;
   const d=t.dataset,id=state.detail;
   if(d.pin||d.pick){const p=d.pin||d.pick;state.sel=state.sel===p?null:p;render();const c=document.getElementById('pv');if(c)c.scrollIntoView({behavior:'smooth',block:'nearest'})}
-  else if(d.addspot!==undefined){state.ad=newDraft();state.page='add';window.scrollTo(0,0);render()}
+  else if(d.addspot!==undefined){state.ad=newDraft();if(t.dataset.mine)state.ad.mine=true;state.page='add';window.scrollTo(0,0);render()}
   else if(d.atype){state.ad.type=d.atype;render()}
   else if(d.ckind){state.ad.ckind=d.ckind;render()}
   else if(d.gps!==undefined)useGPS('ad');
@@ -591,9 +659,6 @@ document.addEventListener('click',e=>{
   else if(d.rmaddphoto!==undefined){state.ad.photo=null;render()}
   else if(d.seeadded){const sp=spot(d.seeadded);state.page=null;state.justAdded=false;state.detail=null;state.area=sp.area;state.sel=sp.id;render();const c=document.getElementById('pv');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})}
   else if(d.notify){state.pid=d.notify;state.justAdded=false;state.page='notify';window.scrollTo(0,0);render()}
-  else if(d.claim){state.pid=d.claim;state.cl={name:'',role:'Owner',contact:''};state.claimDone=false;state.page='claim';window.scrollTo(0,0);render()}
-  else if(d.crole){state.cl.role=d.crole;render()}
-  else if(d.submitclaim!==undefined){const c=state.cl;if(!c.name.trim()||!c.contact.trim()){toast('Add your name and a contact');return}const sp=spot(state.pid);claims.push({spotId:sp.id,spot:sp.name,name:c.name.trim(),role:c.role,contact:c.contact.trim(),at:Date.now()});saveClaims();state.claimDone=true;render();window.scrollTo(0,0)}
   else if(d.nkind){cts[state.pid]=cts[state.pid]||{kind:d.nkind,val:''};cts[state.pid].kind=d.nkind;saveCts();render()}
   else if(d.nsave!==undefined){saveCts();render();toast('Contact saved')}
   else if(d.copymsg){copyText(notifyMsg(spot(d.copymsg)),()=>toast('Message copied'))}
@@ -601,7 +666,7 @@ document.addEventListener('click',e=>{
   else if(d.pinit){state.pid=d.pinit;state.pn={lat:null,lng:null,locText:''};state.page='pin';window.scrollTo(0,0);render()}
   else if(d.pingps!==undefined)useGPS('pn');
   else if(d.savepin!==undefined){const sp=spot(state.pid),p=state.pn;if(p.lat==null){toast('Set the location first');return}sp.lat=p.lat;sp.lng=p.lng;pins[sp.id]={lat:p.lat,lng:p.lng};savePins();state.page=null;state.detail=null;state.area=sp.area;state.sel=sp.id;window.scrollTo(0,0);render();toast('Pinned. Thanks!')}
-  else if(d.lock!==undefined){state.admin=false;try{localStorage.removeItem(AKEY)}catch(e){}if(state.detail&&spot(state.detail)&&spot(state.detail).owner)state.detail=null;if(state.sel&&spot(state.sel)&&spot(state.sel).owner)state.sel=null;render();toast('Admin locked')}
+  else if(d.lock!==undefined){state.admin=false;try{localStorage.removeItem(AKEY)}catch(e){}if(state.detail&&spot(state.detail)&&spot(state.detail).owner&&!canOwner(state.detail))state.detail=null;if(state.sel&&spot(state.sel)&&spot(state.sel).owner&&!canOwner(state.sel))state.sel=null;render();toast('Admin locked')}
   else if(d.savehandle){const v=String(state.hf||'').trim().replace(/^@/,'').replace(/[^A-Za-z0-9._]/g,'');if(!v){toast('Type a handle first');return}hnd[d.savehandle]=hnd[d.savehandle]||{};hnd[d.savehandle].ig=v;saveHnd();state.hf='';render();toast('Handle saved')}
   else if(d.tagshare){const sp=spot(d.tagshare),tg=state.tags.split(',').map(x=>x.trim()).filter(Boolean).slice(0,6),ig=igOf(sp);shareText((tg.length?'I tagged '+tg.join(', ')+' at ':'Look what I found: ')+sp.name+(ig?' (@'+ig+')':'')+' on LekkeBru, a new app for finding great coffee around Strand, Gordon\'s Bay and Somerset West. See it here: '+spotLink(sp))}
   else if(d.rmvph!==undefined){const arr=vph[id]||[];arr.splice(parseInt(d.rmvph,10),1);saveVph();state.mainIdx=0;render()}
@@ -612,7 +677,18 @@ document.addEventListener('click',e=>{
   else if(d.tab){state.dtab=d.tab;render()}
   else if(d.cover!==undefined){const ph=vend(id).photos,i=parseInt(d.cover,10);ph.unshift(ph.splice(i,1)[0]);state.mainIdx=0;save();render();toast('Cover photo changed')}
   else if(d.vroast){const v=vend(id);v.roast=v.roast===d.vroast?'':d.vroast;save();render()}
-  else if(d.owner!==undefined){if(!state.admin)return;state.area='Strand';openDetail('narries-brew','owner','about')}
+  else if(d.owner!==undefined){const oid=(d.owner&&d.owner!=='1')?d.owner:'narries-brew';if(!canOwner(oid))return;state.area=spot(oid).area;openDetail(oid,'owner','about')}
+  else if(d.owners!==undefined){state.page='owners';window.scrollTo(0,0);render()}
+  else if(d.oreg!==undefined){state.rg={step:1,q:'',pid:null,name:'',role:'Owner',contact:''};state.page='claim';window.scrollTo(0,0);render()}
+  else if(d.claim){state.rg={step:2,q:'',pid:d.claim,name:'',role:'Owner',contact:''};state.page='claim';window.scrollTo(0,0);render()}
+  else if(d.rpick){state.rg.pid=d.rpick;state.rg.step=2;window.scrollTo(0,0);render()}
+  else if(d.rback!==undefined){state.rg.step=Math.max(1,state.rg.step-1);window.scrollTo(0,0);render()}
+  else if(d.rrole){state.rg.role=d.rrole;render()}
+  else if(d.rsubmit!==undefined){const g=state.rg;if(!g.name.trim()){toast('Add your name');return}if(!g.contact.trim()){toast('Add your WhatsApp number or email');return}const sp=spot(g.pid);claims.push({spotId:sp.id,spot:sp.name,name:g.name.trim(),role:g.role,contact:g.contact.trim(),at:Date.now()});saveClaims();g.step=3;window.scrollTo(0,0);render()}
+  else if(d.rshare!==undefined){shareText(regMsg())}
+  else if(d.osignin!==undefined){state.page='osignin';state.oc='';window.scrollTo(0,0);render()}
+  else if(d.osubmit!==undefined){ownerLogin()}
+  else if(d.osignout!==undefined){state.owned=[];try{localStorage.removeItem(OKEY)}catch(e){}if(state.detail&&spot(state.detail)&&spot(state.detail).owner&&!canOwner(state.detail))state.detail=null;if(state.sel&&spot(state.sel)&&spot(state.sel).owner&&!canOwner(state.sel))state.sel=null;state.page=null;render();toast('Signed out')}
   else if(d.area){state.area=d.area;state.sel=null;render()}
   else if(d.back!==undefined){if(state.page){state.page=null;state.justAdded=false;state.claimDone=false;window.scrollTo(0,0);render()}else{state.detail=null;window.scrollTo(0,0);render()}}
   else if(d.view){state.view=d.view;render()}
@@ -639,12 +715,15 @@ document.addEventListener('input',e=>{
   if(t.dataset.tagin!==undefined)state.tags=t.value;
   if(t.dataset.hf!==undefined)state.hf=t.value;
   if(t.dataset.jptags!==undefined)state.jptags=t.value;
-  if(t.dataset.cf&&state.cl)state.cl[t.dataset.cf]=t.value;
+  if(t.dataset.oc!==undefined){state.oc=t.value;if(t.value.toLowerCase().replace(/[^a-z0-9]/g,'').length>=10&&!state.logging){state.logging=true;ownerLogin().finally(()=>{state.logging=false})}}
+  if(t.dataset.rf!==undefined&&state.rg)state.rg[t.dataset.rf]=t.value;
+  if(t.dataset.rq!==undefined&&state.rg){state.rg.q=t.value;const el=document.getElementById('rres');if(el)el.innerHTML=rres(t.value)}
   if(t.dataset.nval!==undefined){const k=state.pid;cts[k]=cts[k]||{kind:'whatsapp',val:''};cts[k].val=t.value;saveCts()}
   if(t.dataset.vfield){vend(state.detail)[t.dataset.vfield]=t.value;save()}
 });
 document.addEventListener('change',async e=>{
   const t=e.target;
+  if(t.dataset.amine!==undefined){state.ad.mine=t.checked;return}
   if(t.dataset.asel==='area'){state.ad.area=t.value;render();return}
   if(t.dataset.af==='locText'){const pl=parseLoc(t.value);if(pl){state.ad.lat=pl[0];state.ad.lng=pl[1];render()}else if(t.value.trim())toast('Could not find coordinates in that');return}
   if(t.dataset.pf==='locText'){const pl=parseLoc(t.value);if(pl){state.pn.lat=pl[0];state.pn.lng=pl[1];render()}else if(t.value.trim())toast('Could not find coordinates in that');return}
@@ -668,7 +747,10 @@ document.addEventListener('change',async e=>{
   t.value='';render();
 });
 importFromHash();
+let ownerLinkCode=null;
+{const m=location.hash.match(/^#owner=([A-Za-z0-9-]{8,24})$/);if(m){ownerLinkCode=m[1];try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}}
 render();
+if(ownerLinkCode){state.oc=ownerLinkCode;ownerLogin(true)}
 </script>
 </body>
 </html>

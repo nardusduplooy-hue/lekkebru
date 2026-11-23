@@ -147,7 +147,7 @@ const SPOTS=[
 {id:'chilli-bean-co',name:'Chilli Bean Co',type:'fixed',area:'Strand',lat:-34.106163,lng:18.818331},
 {id:'colourful-trailer',name:'Colourful coffee trailer (name needed)',type:'mobile',area:'Strand',lat:-34.105183,lng:18.817688},
 {id:'glass-building-cafe',name:'Cafe in glass building (name needed)',type:'fixed',area:'Strand',lat:-34.104649,lng:18.817331},
-{id:'black-trailer',name:'Black coffee trailer (name needed)',type:'mobile',area:'Strand',lat:-34.104912,lng:18.817329},
+{id:'black-trailer',name:'Bean Spoiled Coffee Strand',type:'mobile',area:'Strand',lat:-34.104912,lng:18.817329},
 {id:'blue-kiosk',name:'Blue beach kiosk (name needed)',type:'mobile',area:'Strand',lat:-34.104176,lng:18.816929},
 {id:'boutique-roastery',name:'The Boutique Roastery',type:'fixed',area:'Strand',lat:-34.095676,lng:18.812742}
 ,{id:'pajamas-and-jam',name:'Pajamas and Jam',type:'fixed',area:'Strand',lat:null,lng:null,src:'web',addr:'32 Van Zyl St, Strand',web:'pajamasandjam.com',info:'Quirky eatery in the industrial area between Somerset West and Strand.'}
@@ -279,6 +279,28 @@ function mapSVG(L){
 
 function specialLine(v){const sp=v&&v.special;return sp?`${esc(sp.title)}${sp.price?' · '+esc(sp.price):''}${sp.until?' · until '+esc(sp.until):''}`:''}
 
+function dataUrlToFile(u,name){const parts=String(u).split(',');const mime=(parts[0].match(/:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(parts[1]||'');const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new File([arr],name,{type:mime})}
+function sendContrib(onlyId){
+  const ids=onlyId?[onlyId]:[...new Set(Object.keys(vph).filter(id=>vph[id]&&vph[id].length).concat(Object.keys(hnd)).concat(SPOTS.filter(x=>x.user).map(x=>x.id)))];
+  const lines=['LekkeBru contributions from a visitor:'],files=[];
+  ids.forEach(id=>{const sp=spot(id);if(!sp)return;const hh=hnd[id]||{},arr=vph[id]||[];
+    if(!arr.length&&!hh.ig&&!sp.user)return;
+    let ln=(sp.user?'NEW SPOT: ':'')+sp.name+' ('+sp.area+')';
+    if(sp.user&&sp.lat!=null)ln+=' at '+sp.lat.toFixed(5)+', '+sp.lng.toFixed(5);
+    if(hh.ig||sp.ig)ln+=' | Instagram: @'+(hh.ig||sp.ig);
+    lines.push('');lines.push(ln);
+    if(sp.user&&sp.note)lines.push('  note: '+sp.note);
+    if(sp.user&&sp.photo)files.push(dataUrlToFile(sp.photo,id+'-main.jpg'));
+    arr.forEach((q,i)=>{if(q.tags&&q.tags.length)lines.push('  photo '+(i+1)+' tagged: '+q.tags.join(', '));files.push(dataUrlToFile(q.src,id+'-'+(i+1)+'.jpg'))});
+  });
+  if(lines.length===1){toast('Nothing to send yet');return}
+  const text=lines.join('\n');
+  if(navigator.canShare&&files.length&&navigator.canShare({files})){
+    navigator.share({files,title:'LekkeBru photos',text}).catch(e=>{if(!e||e.name!=='AbortError')toast('Sharing did not work. Use Copy instead.')});return;
+  }
+  copyText(text,()=>toast(files.length?'Details copied. Photos are downloading.':'Details copied'));
+  files.forEach(f=>{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove()});
+}
 function shareText(msg){if(navigator.share){navigator.share({title:'LekkeBru',text:msg}).catch(()=>{})}else window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank')}
 function home(){
   const L=layout(state.area),all=L.list.concat(L.unp);
@@ -303,7 +325,7 @@ function home(){
     h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num" style="background:${colour(s.type)}">${s.n}</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span>${s.owner?'<span class="tag-test">test</span>':''}${s.user?'<span class="tag-test">visitor added</span>':''}${s.src==='web'?'<span class="tag-test">found online</span>':''}<br><span style="font-size:12px;color:var(--muted)">${typeLabel(s.type)}${igOf(s)?' &middot; @'+esc(igOf(s)):''}</span>${s.owner?' '+statusChip(s.id):''}</span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`});
   if(L.unp.length){h+=`<h2 style="margin-top:16px">Needs a pin</h2><div style="font-size:12px;color:var(--muted);margin:-4px 0 8px;line-height:1.4">We found these online but nobody has pinned them yet. If you are there, open one and drop its pin.</div>`;
     L.unp.forEach(s=>{h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num badge-q">?</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span><span class="tag-test">found online</span><br><span style="font-size:12px;color:var(--muted)">${esc(s.addr||s.area)}</span></span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`})}
-  h+=`</div><div class="foot">Ratings, photos, pins and anything you add are saved on this phone only for now. Tap below to copy them so they can be added to the shared app.<br><button class="btn alt" data-export="1">Copy my ratings, photos and added spots</button><div id="exp"></div><div style="margin-top:10px"><button class="clr" data-owners="1">Owners: register or sign in</button></div>${state.admin?'<br><button class="btn red" data-lock="1">Lock admin</button>':''}</div>`;
+  h+=`</div><div class="foot">Ratings, photos, pins and anything you add are saved on this phone only for now. Tap below to copy them so they can be added to the shared app.<br><button class="btn alt" data-export="1">Copy my ratings, photos and added spots</button> <button class="btn alt" data-sendcontrib="all">Send my photos and details to LekkeBru</button><div id="exp"></div><div style="margin-top:10px"><button class="clr" data-owners="1">Owners: register or sign in</button></div>${state.admin?'<br><button class="btn red" data-lock="1">Lock admin</button>':''}</div>`;
   return h;
 }
 
@@ -313,6 +335,7 @@ function gallery(s){
   const idx=Math.min(state.mainIdx,items.length-1),cur=items[idx];
   let h=`<img class="photo" src="${cur.src}" alt="" style="object-position:${s.owner?'50% 30%':'center'}" onerror="this.style.visibility='hidden'"/>`;
   if(items.length>1)h+=`<div class="thumbs">${items.map((x,i)=>`<img class="th${i===idx?' on':''}" src="${x.src}" data-main="${i}" alt=""/>`).join('')}</div>`;
+  if(s.credit)h+=`<div class="note" style="margin-top:8px">${esc(s.credit)}</div>`;
   if(cur.vis)h+=`<div class="note" style="margin-top:8px">Visitor photo${cur.tags.length?' &middot; with '+cur.tags.map(esc).join(', '):''} <button class="clr" data-rmvph="${cur.i}">Remove</button></div>`;
   return h;
 }
@@ -371,7 +394,8 @@ function addPhotoCard(s){
   return `<div class="sec"><h3>Add your photo</h3><div style="font-size:13px;color:var(--muted);line-height:1.4">Snap it now or pick one from your phone. Tag the friends who were with you.</div>
   <label>Tag friends (names or @handles, separated by commas)</label><input class="in" data-tagin="1" value="${esc(state.tags)}" placeholder="e.g. Jannes, @jackie"/>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><label class="file">Take a photo<input type="file" accept="image/*" capture="environment" data-upload="vphoto"/></label><label class="file alt">Choose from photos<input type="file" accept="image/*" multiple data-upload="vphoto"/></label></div>
-  <button class="btn alt" data-tagshare="${s.id}">Tag and tell friends</button></div>`;
+  <button class="btn alt" data-tagshare="${s.id}">Tag and tell friends</button>
+  ${((vph[s.id]&&vph[s.id].length)||(hnd[s.id]&&hnd[s.id].ig))?`<button class="btn alt" data-sendcontrib="${s.id}">Send my photos and details to LekkeBru</button>`:''}</div>`;
 }
 function aboutTab(s,r,v){
   let h='';
@@ -646,7 +670,7 @@ function openDetail(id,view,tab){state.detail=id;state.view=view||'customer';sta
 
 document.addEventListener('click',e=>{
   if(e.target.closest('.wm')){const now=Date.now();wmTaps=wmTaps.filter(t=>now-t<4000);wmTaps.push(now);if(wmTaps.length>=5){wmTaps=[];askAdmin()}return}
-  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export],[data-setopen],[data-pub],[data-rmspecial],[data-additem],[data-delitem],[data-delphoto],[data-delmenu],[data-reset],[data-view],[data-main],[data-owner],[data-rate],[data-tab],[data-cover],[data-vroast],[data-addspot],[data-atype],[data-gps],[data-adddup],[data-submitadd],[data-seeadded],[data-notify],[data-claim],[data-crole],[data-submitclaim],[data-nkind],[data-nsave],[data-copymsg],[data-share],[data-ckind],[data-rmaddphoto],[data-pinit],[data-pingps],[data-savepin],[data-lock],[data-savehandle],[data-tagshare],[data-rmvph],[data-invite],[data-jpsave],[data-jpshare],[data-osignin],[data-oreg],[data-osignout],[data-osubmit],[data-owners],[data-claim],[data-rpick],[data-rback],[data-rsubmit],[data-rshare],[data-rrole]');
+  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export],[data-setopen],[data-pub],[data-rmspecial],[data-additem],[data-delitem],[data-delphoto],[data-delmenu],[data-reset],[data-view],[data-main],[data-owner],[data-rate],[data-tab],[data-cover],[data-vroast],[data-addspot],[data-atype],[data-gps],[data-adddup],[data-submitadd],[data-seeadded],[data-notify],[data-claim],[data-crole],[data-submitclaim],[data-nkind],[data-nsave],[data-copymsg],[data-share],[data-ckind],[data-rmaddphoto],[data-pinit],[data-pingps],[data-savepin],[data-lock],[data-savehandle],[data-tagshare],[data-rmvph],[data-invite],[data-jpsave],[data-jpshare],[data-osignin],[data-oreg],[data-osignout],[data-osubmit],[data-sendcontrib],[data-owners],[data-claim],[data-rpick],[data-rback],[data-rsubmit],[data-rshare],[data-rrole]');
   if(!t)return;
   const d=t.dataset,id=state.detail;
   if(d.pin||d.pick){const p=d.pin||d.pick;state.sel=state.sel===p?null:p;render();const c=document.getElementById('pv');if(c)c.scrollIntoView({behavior:'smooth',block:'nearest'})}
@@ -678,6 +702,7 @@ document.addEventListener('click',e=>{
   else if(d.cover!==undefined){const ph=vend(id).photos,i=parseInt(d.cover,10);ph.unshift(ph.splice(i,1)[0]);state.mainIdx=0;save();render();toast('Cover photo changed')}
   else if(d.vroast){const v=vend(id);v.roast=v.roast===d.vroast?'':d.vroast;save();render()}
   else if(d.owner!==undefined){const oid=(d.owner&&d.owner!=='1')?d.owner:'narries-brew';if(!canOwner(oid))return;state.area=spot(oid).area;openDetail(oid,'owner','about')}
+  else if(d.sendcontrib){sendContrib(d.sendcontrib==='all'?null:d.sendcontrib)}
   else if(d.owners!==undefined){state.page='owners';window.scrollTo(0,0);render()}
   else if(d.oreg!==undefined){state.rg={step:1,q:'',pid:null,name:'',role:'Owner',contact:''};state.page='claim';window.scrollTo(0,0);render()}
   else if(d.claim){state.rg={step:2,q:'',pid:d.claim,name:'',role:'Owner',contact:''};state.page='claim';window.scrollTo(0,0);render()}

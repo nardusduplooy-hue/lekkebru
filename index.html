@@ -217,18 +217,22 @@ function colour(t){return t==='fixed'?'#1D6B4B':'#BA7517'}
 function typeLabel(t){return t==='fixed'?'Fixed shop':'Mobile trailer or kiosk'}
 function hhmm(ts){return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
 function status(id){const s=spot(id);if(!s||!s.owner)return null;return vend(id).open?'open':'closed'}
-function statusChip(id){const st=status(id);return st?`<span class="chip ${st==='open'?'c-open':'c-closed'}">${st==='open'?'Open now':'Closed'}</span>`:''}
+function statusChip(id){const st=status(id),ev=lastEvent(id,FLASH_MS);
+  if(st==='open')return `<span class="chip c-open">Open now</span>`;
+  if(ev)return `<span class="chip c-open">Coffee bought ${ago(ev.at)}</span>`;
+  return st?`<span class="chip c-closed">Closed</span>`:''}
 function galleryItems(s){
   const v=s.owner?vend(s.id):null;let base=[];
   if(v&&v.photos.length)base=v.photos.map(x=>({src:x}));
   else if(s.pics&&s.pics.length)base=s.pics.map(x=>({src:x}));
   else if(s.photo)base=[{src:s.photo}];
   else if(s.owner||(!s.user&&s.src!=='web'))base=[{src:`photos/${s.id}.jpg`}];
+  const sh=(shared[s.id]||[]).map(q=>({src:q.src,vis:true,shared:true,id:q.id,tags:q.tags||[],author:q.author||''}));
   const vp=(vph[s.id]||[]).map((q,i)=>({src:q.src,vis:true,tags:q.tags||[],i}));
-  return base.concat(vp);
+  return base.concat(sh).concat(vp);
 }
 function coverSrc(s){const it=galleryItems(s);return it.length?it[0].src:null}
-function igOf(s){const h=hnd[s.id]||{};return String(h.ig||s.ig||'').replace(/^@/,'').replace(/[^A-Za-z0-9._]/g,'')}
+function igOf(s){const h=hnd[s.id]||{};return String(s.ig||sharedHnd[s.id]||h.ig||'').replace(/^@/,'').replace(/[^A-Za-z0-9._]/g,'')}
 function img(s,cls){const src=coverSrc(s);if(!src)return `<div class="${cls} ph">${logo()}</div>`;return `<img class="${cls}" src="${src}" alt="" style="object-position:${s.owner?'38% 35%':'center'}" onerror="this.style.visibility='hidden'"/>`}
 let state={area:'Strand',sel:null,detail:null,view:'customer',dtab:'about',draft:{},mainIdx:0,page:null,pid:null,ad:null,cl:null,pn:null,justAdded:false,claimDone:false,tags:'',hf:'',jp:null,jptags:'',oc:'',rg:null,owned:(()=>{try{const a=JSON.parse(localStorage.getItem('lekkebru:owned')||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string'):[]}catch(e){return []}})(),admin:(()=>{try{return localStorage.getItem('lekkebru:admin')==='1'}catch(e){return false}})()};
 function initDraft(id){const s=spot(id);const sp=s&&s.owner?vend(id).special:null;state.draft={stitle:sp?sp.title:'',sdesc:sp?sp.desc:'',sprice:sp?sp.price:'',suntil:sp?sp.until:'',iname:'',iprice:''}}
@@ -270,8 +274,8 @@ function mapSVG(L){
   s+=`<g transform="translate(348,34)"><line x1="0" y1="14" x2="0" y2="-6" stroke="#1A1410" stroke-width="1.5"/><polygon points="0,-12 -5,-3 5,-3" fill="#1A1410"/><text x="-4" y="30" font-size="11" fill="#7A6F65">N</text></g>`;
   s+=`<g transform="translate(${W-barPx-20},${H-18})"><line x1="0" y1="0" x2="${barPx}" y2="0" stroke="#1A1410" stroke-width="2"/><line x1="0" y1="-4" x2="0" y2="4" stroke="#1A1410" stroke-width="2"/><line x1="${barPx}" y1="-4" x2="${barPx}" y2="4" stroke="#1A1410" stroke-width="2"/><text x="0" y="-8" font-size="11" fill="#7A6F65">${bar} m</text></g>`;
   list.forEach(p=>{if(Math.hypot(p.dx-p.x,p.dy-p.y)>4)s+=`<line x1="${p.x}" y1="${p.y}" x2="${p.dx}" y2="${p.dy}" stroke="#7A6F65" stroke-width="1"/>`;s+=`<circle cx="${p.x}" cy="${p.y}" r="2.5" fill="#1A1410"/>`});
-  list.forEach(p=>{const on=state.sel===p.id,st=status(p.id);
-    s+=`<g data-pin="${p.id}" style="cursor:pointer">${(p.user||p.src==='web')?`<circle cx="${p.dx}" cy="${p.dy}" r="${on?20:17}" fill="none" stroke="#1A1410" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}${st==='open'?`<circle cx="${p.dx}" cy="${p.dy}" r="12" fill="#2ECC71" opacity="0.5" style="pointer-events:none"><animate attributeName="r" values="12;26;12" dur="1.3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.55;0;0.55" dur="1.3s" repeatCount="indefinite"/></circle>`:''}<circle cx="${p.dx}" cy="${p.dy}" r="${on?15:12}" fill="${st==='open'?'#17A05B':colour(p.type)}" stroke="${on?'#1A1410':'#fff'}" stroke-width="${on?3:2}">${st==='open'?'<animate attributeName="fill" values="#128A4C;#3FD982;#128A4C" dur="0.9s" repeatCount="indefinite"/>':''}</circle><text x="${p.dx}" y="${p.dy+4}" text-anchor="middle" font-size="12" font-weight="500" fill="#fff" style="pointer-events:none">${p.n}</text>${st==='closed'?`<circle cx="${p.dx+11}" cy="${p.dy-11}" r="6" fill="#A32D2D" stroke="#fff" stroke-width="1.8" style="pointer-events:none"/>`:''}</g>`});
+  list.forEach(p=>{const on=state.sel===p.id,st=status(p.id),live=(st==='open'||isLive(p.id));
+    s+=`<g data-pin="${p.id}" style="cursor:pointer">${(p.user||p.src==='web')?`<circle cx="${p.dx}" cy="${p.dy}" r="${on?20:17}" fill="none" stroke="#1A1410" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}${live?`<circle cx="${p.dx}" cy="${p.dy}" r="12" fill="#2ECC71" opacity="0.5" style="pointer-events:none"><animate attributeName="r" values="12;26;12" dur="1.3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.55;0;0.55" dur="1.3s" repeatCount="indefinite"/></circle>`:''}<circle cx="${p.dx}" cy="${p.dy}" r="${on?15:12}" fill="${live?'#17A05B':colour(p.type)}" stroke="${on?'#1A1410':'#fff'}" stroke-width="${on?3:2}">${live?'<animate attributeName="fill" values="#128A4C;#3FD982;#128A4C" dur="0.9s" repeatCount="indefinite"/>':''}</circle><text x="${p.dx}" y="${p.dy+4}" text-anchor="middle" font-size="12" font-weight="500" fill="#fff" style="pointer-events:none">${p.n}</text>${(st==='closed'&&!live)?`<circle cx="${p.dx+11}" cy="${p.dy-11}" r="6" fill="#A32D2D" stroke="#fff" stroke-width="1.8" style="pointer-events:none"/>`:''}</g>`});
   if(state.sel){const p=list.find(q=>q.id===state.sel);if(p){const w=Math.min(p.name.length*6.4+16,230),lx=Math.min(Math.max(p.dx-w/2,6),W-w-6),ly=p.dy-34;
     s+=`<g style="pointer-events:none"><rect x="${lx}" y="${ly}" width="${w}" height="22" rx="6" fill="#1A1410"/><text x="${lx+w/2}" y="${ly+15}" text-anchor="middle" font-size="12" fill="#fff">${esc(p.name.length>34?p.name.slice(0,33)+'...':p.name)}</text></g>`}}
   return s+'</svg>';
@@ -279,6 +283,84 @@ function mapSVG(L){
 
 function specialLine(v){const sp=v&&v.special;return sp?`${esc(sp.title)}${sp.price?' · '+esc(sp.price):''}${sp.until?' · until '+esc(sp.until):''}`:''}
 
+// ===== Live check-ins ("I just bought a coffee") =====
+const FLASH_MS=30*60000,TICKER_MS=3*3600000;
+let liveShared=[],liveLocal=[];
+try{liveLocal=JSON.parse(localStorage.getItem('lekkebru:checkins')||'[]')}catch(e){liveLocal=[]}
+function saveLive(){try{const now=Date.now();liveLocal=liveLocal.filter(e=>now-e.at<TICKER_MS).slice(-50);localStorage.setItem('lekkebru:checkins',JSON.stringify(liveLocal))}catch(e){}}
+function ago(ms){const m=Math.floor((Date.now()-ms)/60000);if(m<1)return 'just now';if(m<60)return m+' min ago';return Math.floor(m/60)+' h ago'}
+function recentEvents(w){const now=Date.now(),ok={},seen={},out=[];vis().forEach(x=>{ok[x.id]=1});[].concat(liveShared,liveLocal).forEach(e=>{if(seen[e.id]||!ok[e.spot_id]||now-e.at>w)return;seen[e.id]=1;out.push(e)});return out.sort((a,b)=>b.at-a.at)}
+function lastEvent(id,w){return recentEvents(w).find(e=>e.spot_id===id)||null}
+function isLive(id){return !!lastEvent(id,FLASH_MS)}
+function evText(e){return e.name+' just '+(e.has_photo?'posted a photo':'bought a coffee')}
+// ===== Shared community storage (Supabase). Leave url/key empty to run in local-only mode. =====
+const SB={url:'',key:''};
+const sbOn=()=>!!(SB.url&&SB.key);
+const sbBase=()=>SB.url.replace(/\/+$/,'');
+function sbH(extra){const h={apikey:SB.key};if(/^eyJ/.test(SB.key))h.Authorization='Bearer '+SB.key;return Object.assign(h,extra||{})}
+let shared={},sharedHnd={},sbBusy=false,reported=[],mine=[];
+try{reported=JSON.parse(localStorage.getItem('lekkebru:reported')||'[]')}catch(e){reported=[]}
+try{mine=JSON.parse(localStorage.getItem('lekkebru:mine')||'[]')}catch(e){mine=[]}
+function saveMine(){try{localStorage.setItem('lekkebru:mine',JSON.stringify(mine.slice(-300)))}catch(e){}}
+function saveReported(){try{localStorage.setItem('lekkebru:reported',JSON.stringify(reported.slice(-300)))}catch(e){}}
+function softRender(){const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return;render()}
+async function loadShared(){
+  if(!sbOn()||sbBusy)return;sbBusy=true;
+  try{
+    const q1=sbBase()+'/rest/v1/photos?select=id,spot_id,path,tags,author,created_at&hidden=eq.false&order=created_at.asc&limit=1000';
+    let r=await fetch(q1,{headers:sbH()});
+    if(!r.ok)r=await fetch(q1.replace('tags,author,','tags,'),{headers:sbH()});
+    if(r.ok){const rows=await r.json(),m={};rows.forEach(x=>{if(reported.indexOf(x.id)>-1)return;(m[x.spot_id]=m[x.spot_id]||[]).push({id:x.id,src:sbBase()+'/storage/v1/object/public/spot-photos/'+x.path,tags:x.tags||[],author:x.author||'',at:x.created_at})});shared=m}
+    try{const rc=await fetch(sbBase()+'/rest/v1/checkins?select=id,spot_id,name,has_photo,created_at&created_at=gte.'+encodeURIComponent(new Date(Date.now()-TICKER_MS).toISOString())+'&order=created_at.desc&limit=100',{headers:sbH()});if(rc.ok){const rows=await rc.json();liveShared=rows.map(x=>({id:x.id,spot_id:x.spot_id,name:x.name,has_photo:!!x.has_photo,at:Date.parse(x.created_at)}))}}catch(e){}
+    const r2=await fetch(sbBase()+'/rest/v1/handles?select=spot_id,ig',{headers:sbH()});
+    if(r2.ok){const rows=await r2.json(),m={};rows.forEach(x=>{m[x.spot_id]=x.ig});sharedHnd=m}
+  }catch(e){}
+  sbBusy=false;softRender();
+}
+async function uploadShared(id,dataUrl,tags,author){
+  try{
+    const f=dataUrlToFile(dataUrl,'p.jpg');
+    const safe=String(id).replace(/[^A-Za-z0-9_-]/g,'-').slice(0,60);
+    const path=safe+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.jpg';
+    const up=await fetch(sbBase()+'/storage/v1/object/spot-photos/'+path,{method:'POST',headers:sbH({'Content-Type':'image/jpeg','x-upsert':'false'}),body:f});
+    if(!up.ok)return null;
+    const body={spot_id:id,path,tags:tags||[]};if(author)body.author=author;
+    const send=()=>fetch(sbBase()+'/rest/v1/photos',{method:'POST',headers:sbH({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify(body)});
+    let ins=await send();
+    if(!ins.ok&&author){delete body.author;ins=await send()}
+    if(!ins.ok)return null;
+    const row=(await ins.json())[0];
+    return {id:row.id,src:sbBase()+'/storage/v1/object/public/spot-photos/'+path,tags:row.tags||tags||[],author:row.author||author||'',at:row.created_at};
+  }catch(e){return null}
+}
+async function shareHandle(id,ig){
+  if(!sbOn())return false;
+  try{const r=await fetch(sbBase()+'/rest/v1/handles?on_conflict=spot_id',{method:'POST',headers:sbH({'Content-Type':'application/json',Prefer:'resolution=ignore-duplicates,return=minimal'}),body:JSON.stringify({spot_id:id,ig})});if(r.ok){if(!sharedHnd[id])sharedHnd[id]=ig;return true}}catch(e){}
+  return false;
+}
+async function reportPhoto(pid){
+  reported.push(pid);saveReported();
+  Object.keys(shared).forEach(k=>{shared[k]=shared[k].filter(q=>q.id!==pid)});
+  render();toast('Thanks, we will look at it');
+  try{await fetch(sbBase()+'/rest/v1/reports',{method:'POST',headers:sbH({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify({photo_id:pid})})}catch(e){}
+}
+let syncing=false;
+async function syncLocal(){
+  if(!sbOn()||syncing)return;syncing=true;let n=0,h=0;
+  try{
+    for(const id of Object.keys(vph)){
+      if(String(id).indexOf('u-')===0)continue;
+      const keep=[];
+      for(const q of (vph[id]||[])){const row=await uploadShared(id,q.src,q.tags);if(row){(shared[id]=shared[id]||[]).push(row);mine.push(row.id);n++}else keep.push(q)}
+      vph[id]=keep;
+    }
+    saveVph();saveMine();
+    for(const id of Object.keys(hnd)){const ig=hnd[id]&&hnd[id].ig;if(ig&&!hnd[id].sent&&String(id).indexOf('u-')!==0){if(await shareHandle(id,ig)){hnd[id].sent=true;h++}}}
+    saveHnd();
+  }catch(e){}
+  syncing=false;
+  if(n||h){render();toast((n?n+' saved photo'+(n>1?'s':'')+' shared with everyone':'')+(n&&h?' and ':'')+(h?h+' handle'+(h>1?'s':'')+' shared':''))}
+}
 function dataUrlToFile(u,name){const parts=String(u).split(',');const mime=(parts[0].match(/:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(parts[1]||'');const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new File([arr],name,{type:mime})}
 function sendContrib(onlyId){
   const ids=onlyId?[onlyId]:[...new Set(Object.keys(vph).filter(id=>vph[id]&&vph[id].length).concat(Object.keys(hnd)).concat(SPOTS.filter(x=>x.user).map(x=>x.id)))];
@@ -307,14 +389,16 @@ function home(){
   const sel=state.sel&&all.find(s=>s.id===state.sel);
   let h=`<div class="top"><div class="wm">${logo()}Lekke<em>Bru</em></div><div style="display:flex;align-items:center"><span style="font-size:12px;color:var(--muted)">${state.admin?'Admin &middot; ':''}${vis().length} spots</span><button class="pill" data-owners="1">Owners</button></div></div>
   <div class="hero"><h1>Where's the lekker coffee,<br><em>bru?</em></h1><p>Tap a pin to see who's there, what's open and what's on today.</p></div>
-  <div class="tabs">${areas().map(a=>`<button class="tab${a===state.area?' on':''}" data-area="${esc(a)}">${esc(a)}</button>`).join('')}</div>
+  <div class="tabs">${areas().map(a=>`<button class="tab${a===state.area?' on':''}" data-area="${esc(a)}">${esc(a)}</button>`).join('')}</div>${tickerHTML()}
   <div class="mapwrap">${mapSVG(L)}</div>
-  <div class="legend"><span><i style="background:#1D6B4B"></i>Fixed shop</span><span><i style="background:#BA7517"></i>Mobile trailer or kiosk</span><span><i style="background:#fff;border:1.5px dashed #1A1410;box-sizing:border-box"></i>Not verified yet</span><span><i style="background:#17A05B;animation:blinkdot 1s ease-in-out infinite"></i>Flashing green = open now</span></div>`;
+  <div class="legend"><span><i style="background:#1D6B4B"></i>Fixed shop</span><span><i style="background:#BA7517"></i>Mobile trailer or kiosk</span><span><i style="background:#fff;border:1.5px dashed #1A1410;box-sizing:border-box"></i>Not verified yet</span><span><i style="background:#17A05B;animation:blinkdot 1s ease-in-out infinite"></i>Flashing green = open now or just visited</span></div>`;
   if(sel){const v=sel.owner?vend(sel.id):null,ig=igOf(sel);
     const about=sel.owner?(v.about?esc(v.about):''):(sel.src==='web'?'Found online and not verified yet. Help out: pin it, add a photo and rate it.':(sel.user?'Added by a visitor. The owner has not claimed it yet.':'The owner has not added details yet.'));
-    h+=`<div class="prev2" id="pv"><div style="display:flex;gap:12px;align-items:center">${img(sel,'thumb')}<div style="flex:1;min-width:0"><div class="pv-name">${sel.n?sel.n+'. ':''}${esc(sel.name)}</div><div class="pv-sub"><span class="chip ${sel.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(sel.type)}</span>${statusChip(sel.id)}${sel.lat==null?'<span class="chipx">needs a pin</span>':''}</div>${ig?`<div class="pv-sub">@${esc(ig)}</div>`:''}</div></div>${v&&v.special?`<div class="spec-strip"><b>Today</b> ${specialLine(v)}</div>`:''}${about?`<div class="blurb">${about}</div>`:''}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-open="${sel.id}">See details</button><button class="btn alt" data-rate="${sel.id}">Ratings</button>${sel.lat==null?`<button class="btn alt" data-pinit="${sel.id}">Pin it</button>`:''}</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><label class="file" style="margin-top:0">Take photo<input type="file" accept="image/*" capture="environment" data-upload="vphoto" data-spot="${sel.id}"/></label><label class="file alt" style="margin-top:0">Add from photos<input type="file" accept="image/*" multiple data-upload="vphoto" data-spot="${sel.id}"/></label></div>
-    ${(state.jp&&state.jp.id===sel.id&&(vph[sel.id]||[])[state.jp.idx])?`<div class="spec-strip" style="background:var(--green-l);color:var(--green-d);margin-top:10px"><div style="display:flex;gap:10px;align-items:center"><img src="${vph[sel.id][state.jp.idx].src}" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover"/><b>Photo added.</b> Who was with you?</div><input class="in" style="margin-top:8px" data-jptags="1" value="${esc(state.jptags)}" placeholder="Tag friends: Jannes, @jackie"/><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn alt" data-jpsave="1">Save tags</button><button class="btn" data-jpshare="1">Tag and tell friends</button></div></div>`:''}</div>`;
+    h+=`<div class="prev2" id="pv"><div style="display:flex;gap:12px;align-items:center">${img(sel,'thumb')}<div style="flex:1;min-width:0"><div class="pv-name">${sel.n?sel.n+'. ':''}${esc(sel.name)}</div><div class="pv-sub"><span class="chip ${sel.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(sel.type)}</span>${statusChip(sel.id)}${sel.lat==null?'<span class="chipx">needs a pin</span>':''}</div>${ig?`<div class="pv-sub">@${esc(ig)}</div>`:''}</div></div>${(()=>{const ev=lastEvent(sel.id,TICKER_MS);return ev?`<div class="spec-strip" style="background:var(--green-l);color:var(--green-d)"><b>${esc(evText(ev))}</b> &middot; ${ago(ev.at)}</div>`:''})()}${v&&v.special?`<div class="spec-strip"><b>Today</b> ${specialLine(v)}</div>`:''}${about?`<div class="blurb">${about}</div>`:''}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-open="${sel.id}">See details</button><button class="btn alt" data-rate="${sel.id}">Ratings</button>${sel.lat==null?`<button class="btn alt" data-pinit="${sel.id}">Pin it</button>`:''}</div>
+    <button class="btn full" style="background:var(--green);margin-top:10px" data-bought="${sel.id}">I just bought a coffee</button>
+    <input class="in" style="margin-top:10px" data-jptags="1" value="${esc(state.jptags)}" placeholder="Tag friends (optional): Jannes, @jackie"/>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><label class="file" style="margin-top:0">Take photo<input type="file" accept="image/*" capture="environment" data-upload="vphoto" data-spot="${sel.id}"/></label><label class="file alt" style="margin-top:0">Add from photos<input type="file" accept="image/*" multiple data-upload="vphoto" data-spot="${sel.id}"/></label></div>
+    ${(state.jp&&state.jp.id===sel.id)?`<div class="spec-strip" style="background:var(--green-l);color:var(--green-d);margin-top:10px"><div style="display:flex;gap:10px;align-items:center"><img src="${state.jp.src}" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover"/><div><b>${sbOn()&&shared[sel.id]&&shared[sel.id].some(q=>q.src===state.jp.src)?'Photo shared with everyone.':'Photo added.'}</b>${state.jp.tags.length?'<br>With '+state.jp.tags.map(esc).join(', '):''}</div></div><button class="btn" data-jpshare="1">Tell friends</button></div>`:''}</div>`;
   }else h+=`<div class="prev">Tap a pin on the map or a name below.</div>`;
   h+=`<div class="prev2" style="background:var(--green-l);border-color:#97C459"><div style="font-weight:500">Visited somewhere that is not on the map?</div><div class="blurb" style="margin-top:4px">Snap a photo, drop the pin, and let them know they are on LekkeBru.</div><button class="btn" data-addspot="1">Add a cart or shop</button> <button class="btn alt" data-invite="1">Invite friends</button></div>`;
   const mine=SPOTS.filter(x=>x.owner&&canOwner(x.id));
@@ -322,10 +406,10 @@ function home(){
   if(claims.length&&!mine.length){const cl=claims[claims.length-1];h+=`<div class="prev2"><div style="font-weight:500">Registration sent</div><div class="blurb" style="margin-top:4px">We have your request for ${esc(cl.spot)}. We will send you an access code once we have checked it.</div><button class="btn alt" data-osignin="1">I have a code</button></div>`}
   h+=`<div class="list"><h2>${esc(state.area)} spots${L.list.length?', north to south':''}</h2>`;
   L.list.forEach(s=>{
-    h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num" style="background:${colour(s.type)}">${s.n}</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span>${s.owner?'<span class="tag-test">test</span>':''}${s.user?'<span class="tag-test">visitor added</span>':''}${s.src==='web'?'<span class="tag-test">found online</span>':''}<br><span style="font-size:12px;color:var(--muted)">${typeLabel(s.type)}${igOf(s)?' &middot; @'+esc(igOf(s)):''}</span>${s.owner?' '+statusChip(s.id):''}</span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`});
+    h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num" style="background:${colour(s.type)}">${s.n}</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span>${s.owner?'<span class="tag-test">test</span>':''}${s.user?'<span class="tag-test">visitor added</span>':''}${s.src==='web'?'<span class="tag-test">found online</span>':''}<br><span style="font-size:12px;color:var(--muted)">${typeLabel(s.type)}${igOf(s)?' &middot; @'+esc(igOf(s)):''}</span>${statusChip(s.id)?' '+statusChip(s.id):''}</span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`});
   if(L.unp.length){h+=`<h2 style="margin-top:16px">Needs a pin</h2><div style="font-size:12px;color:var(--muted);margin:-4px 0 8px;line-height:1.4">We found these online but nobody has pinned them yet. If you are there, open one and drop its pin.</div>`;
     L.unp.forEach(s=>{h+=`<button class="item${state.sel===s.id?' sel':''}" data-pick="${s.id}"><span class="num badge-q">?</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(s.name)}</span><span class="tag-test">found online</span><br><span style="font-size:12px;color:var(--muted)">${esc(s.addr||s.area)}</span></span><span style="color:var(--muted);font-size:20px">&rsaquo;</span></button>`})}
-  h+=`</div><div class="foot">Ratings, photos, pins and anything you add are saved on this phone only for now. Tap below to copy them so they can be added to the shared app.<br><button class="btn alt" data-export="1">Copy my ratings, photos and added spots</button> <button class="btn alt" data-sendcontrib="all">Send my photos and details to LekkeBru</button><div id="exp"></div><div style="margin-top:10px"><button class="clr" data-owners="1">Owners: register or sign in</button></div>${state.admin?'<br><button class="btn red" data-lock="1">Lock admin</button>':''}</div>`;
+  h+=`</div><div class="foot">${sbOn()?'Photos and Instagram handles you add are shared with everyone. Ratings, pins and added spots are saved on this phone only for now.':'Ratings, photos, pins and anything you add are saved on this phone only for now.'} Tap below to copy them so they can be added to the shared app.<br><button class="btn alt" data-export="1">Copy my ratings, photos and added spots</button> <button class="btn alt" data-sendcontrib="all">Send my photos and details to LekkeBru</button><div id="exp"></div><div style="margin-top:10px"><button class="clr" data-owners="1">Owners: register or sign in</button></div>${state.admin?'<br><button class="btn red" data-lock="1">Lock admin</button>':''}</div>`;
   return h;
 }
 
@@ -336,7 +420,7 @@ function gallery(s){
   let h=`<img class="photo" src="${cur.src}" alt="" style="object-position:${s.owner?'50% 30%':'center'}" onerror="this.style.visibility='hidden'"/>`;
   if(items.length>1)h+=`<div class="thumbs">${items.map((x,i)=>`<img class="th${i===idx?' on':''}" src="${x.src}" data-main="${i}" alt=""/>`).join('')}</div>`;
   if(s.credit)h+=`<div class="note" style="margin-top:8px">${esc(s.credit)}</div>`;
-  if(cur.vis)h+=`<div class="note" style="margin-top:8px">Visitor photo${cur.tags.length?' &middot; with '+cur.tags.map(esc).join(', '):''} <button class="clr" data-rmvph="${cur.i}">Remove</button></div>`;
+  if(cur.vis)h+=`<div class="note" style="margin-top:8px">${cur.shared?(mine.indexOf(cur.id)>-1?'Your photo':'Visitor photo'+(cur.author?' by '+esc(cur.author):'')):'Saved on this phone only'}${cur.tags.length?' &middot; with '+cur.tags.map(esc).join(', '):''} ${cur.shared?(mine.indexOf(cur.id)>-1?'':`<button class="clr" data-report="${cur.id}">Report</button>`):`<button class="clr" data-rmvph="${cur.i}">Remove</button>`}</div>`;
   return h;
 }
 function menuView(v){
@@ -391,7 +475,7 @@ function onlineCard(s){
   return `<div class="sec"><h3>Find them online</h3>${b||'<div style="font-size:14px;color:var(--muted)">No social links yet.</div>'}${add}</div>`;
 }
 function addPhotoCard(s){
-  return `<div class="sec"><h3>Add your photo</h3><div style="font-size:13px;color:var(--muted);line-height:1.4">Snap it now or pick one from your phone. Tag the friends who were with you.</div>
+  return `<div class="sec"><h3>Add your photo</h3><div style="font-size:13px;color:var(--muted);line-height:1.4">Snap it now or pick one from your phone. Tag the friends who were with you.${sbOn()?' Photos you add are visible to everyone, so please only share photos you are happy for others to see.':''}</div>
   <label>Tag friends (names or @handles, separated by commas)</label><input class="in" data-tagin="1" value="${esc(state.tags)}" placeholder="e.g. Jannes, @jackie"/>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><label class="file">Take a photo<input type="file" accept="image/*" capture="environment" data-upload="vphoto"/></label><label class="file alt">Choose from photos<input type="file" accept="image/*" multiple data-upload="vphoto"/></label></div>
   <button class="btn alt" data-tagshare="${s.id}">Tag and tell friends</button>
@@ -399,6 +483,7 @@ function addPhotoCard(s){
 }
 function aboutTab(s,r,v){
   let h='';
+  {const ev=lastEvent(s.id,TICKER_MS);if(ev)h+=`<div class="spec-strip" style="background:var(--green-l);color:var(--green-d);margin:12px 20px 0"><b>${esc(evText(ev))}</b> &middot; ${ago(ev.at)}</div>`}
   if(s.imported)h+=`<div class="sp"><div class="eb">Welcome</div><div class="tt">Someone added ${esc(s.name)} to LekkeBru</div><div class="ds">Is this your place? Claim it for free to post your hours, specials and menu.</div><button class="btn" data-claim="${s.id}">Claim this spot</button></div>`;
   if(s.src==='web')h+=`<div class="sec"><h3>Found online</h3><div style="font-size:14px;line-height:1.5">${s.info?esc(s.info)+'<br>':''}${s.addr?'<span style="color:var(--muted)">'+esc(s.addr)+'</span><br>':''}<span style="color:var(--muted);font-size:12px">Found online and not verified. Help out: pin it, add a photo and rate it.</span></div></div>`;
   if(s.note)h+=`<div class="sec"><h3>Note from the person who added it</h3><div style="font-size:14px;line-height:1.45">${esc(s.note)}</div></div>`;
@@ -443,7 +528,7 @@ function detail(){
   h+=gallery(s);
   h+=`<div class="ident"><h1>${esc(s.name)}${s.owner?'<span class="tag-test">test cart</span>':''}${s.user?'<span class="tag-test">visitor added</span>':''}${s.src==='web'?'<span class="tag-test">found online</span>':''}</h1><div style="margin-top:8px"><span class="chip ${s.type==='fixed'?'c-fixed':'c-mobile'}">${typeLabel(s.type)}</span>${statusChip(s.id)}<span style="font-size:12px;color:var(--muted)">${esc(s.area)}${ig?' &middot; @'+esc(ig):''}</span></div></div>`;
   if(owner)return h+ownerTools(s);
-  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;padding:12px 20px 0"><label class="file" style="margin-top:0">Take photo<input type="file" accept="image/*" capture="environment" data-upload="vphoto" data-spot="${s.id}"/></label><label class="file alt" style="margin-top:0">Add from photos<input type="file" accept="image/*" multiple data-upload="vphoto" data-spot="${s.id}"/></label></div>`;
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;padding:12px 20px 0"><button class="btn" style="margin-top:0;background:var(--green)" data-bought="${s.id}">I just bought a coffee</button><label class="file" style="margin-top:0">Take photo<input type="file" accept="image/*" capture="environment" data-upload="vphoto" data-spot="${s.id}"/></label><label class="file alt" style="margin-top:0">Add from photos<input type="file" accept="image/*" multiple data-upload="vphoto" data-spot="${s.id}"/></label></div>`;
   h+=`<div class="seg"><button class="${state.dtab==='about'?'on':''}" data-tab="about">About</button><button class="${state.dtab==='ratings'?'on':''}" data-tab="ratings">Ratings</button></div>`;
   return h+(state.dtab==='ratings'?ratingsTab(s,r):aboutTab(s,r,v));
 }
@@ -638,9 +723,42 @@ async function ownerLogin(fromLink){
   }
   toast('That code was not recognised');if(fromLink){state.page='osignin';render()}
 }
+function tickerHTML(){
+  const evs=recentEvents(TICKER_MS).slice(0,3);if(!evs.length)return '';
+  return `<div style="margin:10px 20px 0;display:flex;flex-direction:column;gap:6px">${evs.map(e=>{const sp=spot(e.spot_id);return `<button class="item" style="margin:0;border-color:#97C459;background:var(--green-l)" data-evpick="${e.spot_id}"><span class="num" style="background:#17A05B;animation:blinkdot 1s ease-in-out infinite">&nbsp;</span><span style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500">${esc(evText(e))}</span><br><span style="font-size:12px;color:var(--muted)">${esc(sp.name)} &middot; ${ago(e.at)}</span></span></button>`}).join('')}</div>`;
+}
+function boughtView(){
+  const g=state.bg,s=spot(g.pid);
+  return topBar('Cancel')+`<div class="hero"><h1>I just bought<br><em>a coffee</em></h1><p>At ${esc(s.name)}. Post a photo and the pin flashes green for everyone.</p></div>
+  <div class="sec"><label style="margin-top:0">Your first name</label><input class="in" data-bn="name" value="${esc(g.name)}" placeholder="e.g. Christo" autocomplete="given-name"/>
+  <h3 style="margin-top:16px">Photo (optional)</h3>
+  ${g.photo?`<div class="tiles"><div class="tile"><img src="${g.photo}" alt="Your photo"/><button class="x" data-bnrm="1" aria-label="Remove photo">x</button></div></div>`:'<div style="font-size:13px;color:var(--muted)">Snap your coffee.</div>'}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><label class="file" style="margin-top:0">${g.photo?'Retake':'Take a photo'}<input type="file" accept="image/*" capture="environment" data-upload="bphoto"/></label><label class="file alt" style="margin-top:0">Choose from photos<input type="file" accept="image/*" data-upload="bphoto"/></label></div>
+  <label>Tag friends (optional)</label><input class="in" data-bn="tags" value="${esc(g.tags)}" placeholder="Jannes, @jackie"/></div>
+  <div style="padding:16px 20px 40px"><button class="btn full" style="background:var(--green)" data-bnpost="1">Post it</button></div>`;
+}
+async function postBought(){
+  if(state.posting)return;const g=state.bg;
+  const nm=String(g.name||'').trim().slice(0,30);if(!nm){toast('Add your first name');return}
+  state.posting=true;toast('Posting...');
+  try{localStorage.setItem('lekkebru:name',nm)}catch(e){}
+  const sp=spot(g.pid),tags=String(g.tags||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,6).map(x=>x.slice(0,30));
+  let sharedPhoto=false;
+  if(g.photo){
+    if(sbOn()){const row=await uploadShared(sp.id,g.photo,tags,nm);if(row){(shared[sp.id]=shared[sp.id]||[]).push(row);mine.push(row.id);saveMine();sharedPhoto=true;state.jp={id:sp.id,src:row.src,tags}}}
+    if(!sharedPhoto){vph[sp.id]=vph[sp.id]||[];vph[sp.id].push({src:g.photo,tags,at:Date.now()});if(saveVph())state.jp={id:sp.id,src:g.photo,tags}}
+  }
+  const ev={id:'l-'+Date.now(),spot_id:sp.id,name:nm,has_photo:!!g.photo,at:Date.now()};
+  let sharedEv=false;
+  if(sbOn()){try{const r=await fetch(sbBase()+'/rest/v1/checkins',{method:'POST',headers:sbH({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({spot_id:sp.id,name:nm,has_photo:!!g.photo})});if(r.ok){const row=(await r.json())[0];if(row&&row.id){ev.id=row.id;sharedEv=true}}}catch(e){}}
+  if(sharedEv)liveShared.unshift(ev);else{liveLocal.push(ev);saveLive()}
+  state.posting=false;state.page=null;state.detail=null;state.area=sp.area;state.sel=sp.id;state.bg=null;window.scrollTo(0,0);render();
+  toast(sharedEv?'Posted! The pin is flashing green for everyone':'Posted on this phone only. It flashes for everyone once sharing is connected');
+  const c=document.getElementById('pv');if(c)c.scrollIntoView({behavior:'smooth',block:'center'});
+}
 function render(){
   const y=window.scrollY;
-  document.getElementById('app').innerHTML=state.page==='owners'?ownersView():state.page==='osignin'?signinView():state.page==='add'?addView():state.page==='pin'?pinView():state.page==='notify'?notifyView():state.page==='claim'?claimView():state.detail?detail():home();
+  document.getElementById('app').innerHTML=state.page==='bought'?boughtView():state.page==='owners'?ownersView():state.page==='osignin'?signinView():state.page==='add'?addView():state.page==='pin'?pinView():state.page==='notify'?notifyView():state.page==='claim'?claimView():state.detail?detail():home();
   window.scrollTo(0,y);
 }
 function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2400)}
@@ -666,11 +784,11 @@ function exportAll(){
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>toast('Copied')).catch(fallback)}else fallback();
 }
 function shrink(file,max,q){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',q))};im.onerror=rej;im.src=fr.result};fr.onerror=rej;fr.readAsDataURL(file)})}
-function openDetail(id,view,tab){state.detail=id;state.view=view||'customer';state.dtab=tab||'about';state.mainIdx=0;state.tags='';state.hf='';initDraft(id);window.scrollTo(0,0);render()}
+function openDetail(id,view,tab){state.detail=id;state.view=view||'customer';state.dtab=tab||'about';state.mainIdx=0;{const sp0=spot(id),ev0=sp0?lastEvent(id,TICKER_MS):null;if(ev0&&ev0.has_photo){const n0=galleryItems(sp0).length;if(n0>1)state.mainIdx=n0-1}}state.tags='';state.hf='';initDraft(id);window.scrollTo(0,0);render()}
 
 document.addEventListener('click',e=>{
   if(e.target.closest('.wm')){const now=Date.now();wmTaps=wmTaps.filter(t=>now-t<4000);wmTaps.push(now);if(wmTaps.length>=5){wmTaps=[];askAdmin()}return}
-  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export],[data-setopen],[data-pub],[data-rmspecial],[data-additem],[data-delitem],[data-delphoto],[data-delmenu],[data-reset],[data-view],[data-main],[data-owner],[data-rate],[data-tab],[data-cover],[data-vroast],[data-addspot],[data-atype],[data-gps],[data-adddup],[data-submitadd],[data-seeadded],[data-notify],[data-claim],[data-crole],[data-submitclaim],[data-nkind],[data-nsave],[data-copymsg],[data-share],[data-ckind],[data-rmaddphoto],[data-pinit],[data-pingps],[data-savepin],[data-lock],[data-savehandle],[data-tagshare],[data-rmvph],[data-invite],[data-jpsave],[data-jpshare],[data-osignin],[data-oreg],[data-osignout],[data-osubmit],[data-sendcontrib],[data-owners],[data-claim],[data-rpick],[data-rback],[data-rsubmit],[data-rshare],[data-rrole]');
+  const t=e.target.closest('[data-pin],[data-pick],[data-open],[data-area],[data-back],[data-roast],[data-clear],[data-export],[data-setopen],[data-pub],[data-rmspecial],[data-additem],[data-delitem],[data-delphoto],[data-delmenu],[data-reset],[data-view],[data-main],[data-owner],[data-rate],[data-tab],[data-cover],[data-vroast],[data-addspot],[data-atype],[data-gps],[data-adddup],[data-submitadd],[data-seeadded],[data-notify],[data-claim],[data-crole],[data-submitclaim],[data-nkind],[data-nsave],[data-copymsg],[data-share],[data-ckind],[data-rmaddphoto],[data-pinit],[data-pingps],[data-savepin],[data-lock],[data-savehandle],[data-tagshare],[data-rmvph],[data-invite],[data-jpsave],[data-jpshare],[data-osignin],[data-oreg],[data-osignout],[data-osubmit],[data-sendcontrib],[data-bought],[data-bnrm],[data-bnpost],[data-evpick],[data-report],[data-owners],[data-claim],[data-rpick],[data-rback],[data-rsubmit],[data-rshare],[data-rrole]');
   if(!t)return;
   const d=t.dataset,id=state.detail;
   if(d.pin||d.pick){const p=d.pin||d.pick;state.sel=state.sel===p?null:p;render();const c=document.getElementById('pv');if(c)c.scrollIntoView({behavior:'smooth',block:'nearest'})}
@@ -691,10 +809,9 @@ document.addEventListener('click',e=>{
   else if(d.pingps!==undefined)useGPS('pn');
   else if(d.savepin!==undefined){const sp=spot(state.pid),p=state.pn;if(p.lat==null){toast('Set the location first');return}sp.lat=p.lat;sp.lng=p.lng;pins[sp.id]={lat:p.lat,lng:p.lng};savePins();state.page=null;state.detail=null;state.area=sp.area;state.sel=sp.id;window.scrollTo(0,0);render();toast('Pinned. Thanks!')}
   else if(d.lock!==undefined){state.admin=false;try{localStorage.removeItem(AKEY)}catch(e){}if(state.detail&&spot(state.detail)&&spot(state.detail).owner&&!canOwner(state.detail))state.detail=null;if(state.sel&&spot(state.sel)&&spot(state.sel).owner&&!canOwner(state.sel))state.sel=null;render();toast('Admin locked')}
-  else if(d.savehandle){const v=String(state.hf||'').trim().replace(/^@/,'').replace(/[^A-Za-z0-9._]/g,'');if(!v){toast('Type a handle first');return}hnd[d.savehandle]=hnd[d.savehandle]||{};hnd[d.savehandle].ig=v;saveHnd();state.hf='';render();toast('Handle saved')}
+  else if(d.savehandle){const v=String(state.hf||'').trim().replace(/^@/,'').replace(/[^A-Za-z0-9._]/g,'');if(!v){toast('Type a handle first');return}hnd[d.savehandle]=hnd[d.savehandle]||{};hnd[d.savehandle].ig=v;saveHnd();state.hf='';render();toast('Handle saved');shareHandle(d.savehandle,v).then(ok=>{if(ok){hnd[d.savehandle].sent=true;saveHnd();render()}})}
   else if(d.tagshare){const sp=spot(d.tagshare),tg=state.tags.split(',').map(x=>x.trim()).filter(Boolean).slice(0,6),ig=igOf(sp);shareText((tg.length?'I tagged '+tg.join(', ')+' at ':'Look what I found: ')+sp.name+(ig?' (@'+ig+')':'')+' on LekkeBru, a new app for finding great coffee around Strand, Gordon\'s Bay and Somerset West. See it here: '+spotLink(sp))}
   else if(d.rmvph!==undefined){const arr=vph[id]||[];arr.splice(parseInt(d.rmvph,10),1);saveVph();state.mainIdx=0;render()}
-  else if(d.jpsave!==undefined||d.jpshare!==undefined){const j=state.jp;if(!j||!vph[j.id]||!vph[j.id][j.idx])return;const tg=state.jptags.split(',').map(x=>x.trim()).filter(Boolean).slice(0,6).map(x=>x.slice(0,30));vph[j.id][j.idx].tags=tg;saveVph();const sp=spot(j.id),ig=igOf(sp);if(d.jpshare!==undefined)shareText((tg.length?'I tagged '+tg.join(', ')+' at ':'Look what I found: ')+sp.name+(ig?' (@'+ig+')':'')+' on LekkeBru, a new app for finding great coffee around Strand, Gordon\'s Bay and Somerset West. See it here: '+spotLink(sp));else{render();toast('Tags saved')}}
   else if(d.invite!==undefined){shareText('Hey! I am using LekkeBru to find lekker coffee around Strand, Gordon\'s Bay and Somerset West, and to add the carts and shops I find. Join me: '+location.origin+location.pathname)}
   else if(d.open){openDetail(d.open,'customer','about')}
   else if(d.rate){openDetail(d.rate,'customer','ratings')}
@@ -702,6 +819,12 @@ document.addEventListener('click',e=>{
   else if(d.cover!==undefined){const ph=vend(id).photos,i=parseInt(d.cover,10);ph.unshift(ph.splice(i,1)[0]);state.mainIdx=0;save();render();toast('Cover photo changed')}
   else if(d.vroast){const v=vend(id);v.roast=v.roast===d.vroast?'':d.vroast;save();render()}
   else if(d.owner!==undefined){const oid=(d.owner&&d.owner!=='1')?d.owner:'narries-brew';if(!canOwner(oid))return;state.area=spot(oid).area;openDetail(oid,'owner','about')}
+  else if(d.jpshare!==undefined){const j=state.jp;if(!j)return;const sp=spot(j.id),ig=igOf(sp);shareText((j.tags.length?'I tagged '+j.tags.join(', ')+' at ':'Look what I found: ')+sp.name+(ig?' (@'+ig+')':'')+' on LekkeBru, a new app for finding great coffee around Strand, Gordon\'s Bay and Somerset West. See it here: '+spotLink(sp))}
+  else if(d.report){reportPhoto(d.report)}
+  else if(d.bought){let nm='';try{nm=localStorage.getItem('lekkebru:name')||''}catch(e){}state.bg={pid:d.bought,name:nm,photo:null,tags:''};state.page='bought';window.scrollTo(0,0);render()}
+  else if(d.bnrm!==undefined){state.bg.photo=null;render()}
+  else if(d.bnpost!==undefined){postBought()}
+  else if(d.evpick){const sp=spot(d.evpick);if(!sp)return;state.page=null;state.detail=null;state.area=sp.area;state.sel=sp.id;render();const c=document.getElementById('pv');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})}
   else if(d.sendcontrib){sendContrib(d.sendcontrib==='all'?null:d.sendcontrib)}
   else if(d.owners!==undefined){state.page='owners';window.scrollTo(0,0);render()}
   else if(d.oreg!==undefined){state.rg={step:1,q:'',pid:null,name:'',role:'Owner',contact:''};state.page='claim';window.scrollTo(0,0);render()}
@@ -740,6 +863,7 @@ document.addEventListener('input',e=>{
   if(t.dataset.tagin!==undefined)state.tags=t.value;
   if(t.dataset.hf!==undefined)state.hf=t.value;
   if(t.dataset.jptags!==undefined)state.jptags=t.value;
+  if(t.dataset.bn!==undefined&&state.bg)state.bg[t.dataset.bn]=t.value;
   if(t.dataset.oc!==undefined){state.oc=t.value;if(t.value.toLowerCase().replace(/[^a-z0-9]/g,'').length>=10&&!state.logging){state.logging=true;ownerLogin().finally(()=>{state.logging=false})}}
   if(t.dataset.rf!==undefined&&state.rg)state.rg[t.dataset.rf]=t.value;
   if(t.dataset.rq!==undefined&&state.rg){state.rg.q=t.value;const el=document.getElementById('rres');if(el)el.innerHTML=rres(t.value)}
@@ -753,12 +877,20 @@ document.addEventListener('change',async e=>{
   if(t.dataset.af==='locText'){const pl=parseLoc(t.value);if(pl){state.ad.lat=pl[0];state.ad.lng=pl[1];render()}else if(t.value.trim())toast('Could not find coordinates in that');return}
   if(t.dataset.pf==='locText'){const pl=parseLoc(t.value);if(pl){state.pn.lat=pl[0];state.pn.lng=pl[1];render()}else if(t.value.trim())toast('Could not find coordinates in that');return}
   if(t.type==='file'&&t.dataset.upload==='vphoto'){
-    const id=t.dataset.spot||state.detail;vph[id]=vph[id]||[];let added=0;
-    const tg=t.dataset.spot?[]:state.tags.split(',').map(x=>x.trim()).filter(Boolean).slice(0,6).map(x=>x.slice(0,30));
-    for(const f of [...t.files]){if(vph[id].length>=8){toast('Limit of 8 visitor photos reached');break}try{vph[id].push({src:await shrink(f,900,0.72),tags:tg,at:Date.now()});added++}catch(err){toast('Could not read that image')}}
-    if(added&&!saveVph()){vph[id].splice(vph[id].length-added,added);toast('Phone storage is full. Remove a photo first.')}
-    else if(added){if(state.detail===id)state.mainIdx=galleryItems(spot(id)).length-1;state.jp={id,idx:vph[id].length-1};state.jptags='';toast(added+' photo'+(added>1?'s':'')+' added')}
+    const id=t.dataset.spot||state.detail;
+    const raw=state.detail===id?state.tags:state.jptags;
+    const tg=raw.split(',').map(x=>x.trim()).filter(Boolean).slice(0,6).map(x=>x.slice(0,30));
+    let added=0,sharedN=0,last=null;vph[id]=vph[id]||[];
+    for(const f of [...t.files].slice(0,8)){
+      let src;try{src=await shrink(f,900,0.72)}catch(err){toast('Could not read that image');continue}
+      if(sbOn()){toast('Sharing...');const row=await uploadShared(id,src,tg);if(row){(shared[id]=shared[id]||[]).push(row);mine.push(row.id);saveMine();added++;sharedN++;last={id,src:row.src,tags:tg};continue}}
+      if(vph[id].length>=8){toast('Limit of 8 photos reached on this phone');break}
+      vph[id].push({src,tags:tg,at:Date.now()});if(!saveVph()){vph[id].pop();toast('Phone storage is full. Remove a photo first.');break}
+      added++;last={id,src,tags:tg};
+    }
+    if(added){state.jp=last;if(state.detail===id){state.mainIdx=galleryItems(spot(id)).length-1;state.tags=''}state.jptags='';toast(sharedN?(added>1?added+' photos shared with everyone':'Photo shared with everyone'):(sbOn()?'Saved on this phone. Could not share it yet.':'Saved on this phone'))}
     t.value='';render();return}
+  if(t.type==='file'&&t.dataset.upload==='bphoto'){const f=t.files[0];if(f){try{state.bg.photo=await shrink(f,900,0.72);render()}catch(err){toast('Could not read that image')}}return}
   if(t.type==='file'&&t.dataset.upload==='addphoto'){const f=t.files[0];if(f){try{state.ad.photo=await shrink(f,900,0.72);render();if(t.dataset.gpsafter&&state.ad.lat==null)useGPS('ad')}catch(err){toast('Could not read that image')}}return}
   if(t.type!=='file'||!t.dataset.upload)return;
   const v=vend(state.detail),menu=t.dataset.upload==='menu',list=menu?v.menuPhotos:v.photos,limit=menu?4:8;
@@ -776,6 +908,8 @@ let ownerLinkCode=null;
 {const m=location.hash.match(/^#owner=([A-Za-z0-9-]{8,24})$/);if(m){ownerLinkCode=m[1];try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}}
 render();
 if(ownerLinkCode){state.oc=ownerLinkCode;ownerLogin(true)}
+setInterval(()=>{if(!document.hidden)softRender()},60000);
+if(sbOn()){loadShared().then(syncLocal);setInterval(()=>{if(!document.hidden)loadShared()},45000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadShared()})}
 </script>
 </body>
 </html>
